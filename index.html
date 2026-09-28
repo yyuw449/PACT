@@ -1,12 +1,1342 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Demo Page</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stationary Alone, Drifting Together</title>
+<meta name="description" content="Interaction-mediated nonstationarity in multi-agent reinforcement learning: what it is, where it occurs in practice, and how four benchmarks model it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:ital,wght@0,400..800;1,400..600&family=Overpass+Mono:wght@400..600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..600&display=swap">
+<script>
+  window.MathJax = {
+    loader: { load: ['[tex]/html', '[tex]/boldsymbol'] },
+    tex: {
+      packages: { '[+]': ['html', 'boldsymbol'] },
+      inlineMath: [['\\(', '\\)']],
+      displayMath: [['\\[', '\\]']],
+      macros: {
+        drv: ['\\class{drv}{#1}', 1],
+        peer: ['\\class{peer}{#1}', 1],
+        bx: '\\mathbf{x}',
+        ba: '\\mathbf{a}',
+        btheta: '\\boldsymbol{\\theta}',
+        bomega: '\\boldsymbol{\\omega}',
+        clip: '\\operatorname{clip}',
+        ind: ['\\mathbf{1}\\!\\left[#1\\right]', 1],
+        ex: '\\mathrm{ex}',
+        sent: '\\mathrm{sent}',
+        cmd: '\\mathrm{cmd}',
+        send: '\\mathrm{send}',
+        recv: '\\mathrm{recv}',
+        cls: '\\mathrm{cls}',
+        R: '\\mathbb{R}'
+      }
+    },
+    svg: { fontCache: 'global', displayAlign: 'left', displayIndent: '0' }
+  };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+<style>
+  /* ---------- tokens ---------- */
+  :root {
+    color-scheme: light;
+    --bg: #F3F5F6;
+    --surface: #FFFFFF;
+    --surface-2: #E9EDF0;
+    --ink: #15202B;
+    --ink-2: #3D4A57;
+    --muted: #66727F;
+    --rule: #D6DDE3;
+    --rule-2: #BAC4CD;
+    --drv-ink: #955F00;
+    --peer-ink: #1F57A3;
+    --drv-wash: rgba(191, 124, 12, 0.10);
+    --peer-wash: rgba(47, 111, 196, 0.08);
+    --c-drv: #BF7C0C;
+    --c-peer: #2F6FC4;
+    --c-lone: #9AA3AD;
+    --c-ord1: #6D9FE0;
+    --c-ord2: #2F6FC4;
+    --c-ord3: #163C74;
+    --grid: #E7EBEE;
+    --axis: #BAC4CD;
+    --focus: #2F6FC4;
+    --shadow: 0 1px 2px rgba(21, 32, 43, 0.05), 0 10px 28px -14px rgba(21, 32, 43, 0.22);
+    --f-display: "Overpass", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --f-body: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
+    --f-mono: "Overpass Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0E1318;
+      --surface: #141B21;
+      --surface-2: #1A232B;
+      --ink: #E6EBEF;
+      --ink-2: #B5C0CA;
+      --muted: #8995A1;
+      --rule: #25303A;
+      --rule-2: #34414D;
+      --drv-ink: #F0B650;
+      --peer-ink: #8DB8F5;
+      --drv-wash: rgba(196, 134, 28, 0.15);
+      --peer-wash: rgba(90, 146, 222, 0.13);
+      --c-drv: #C4861C;
+      --c-peer: #5A92DE;
+      --c-lone: #5C6773;
+      --c-ord1: #3A66A6;
+      --c-ord2: #5A92DE;
+      --c-ord3: #A9C8F4;
+      --grid: #1E2830;
+      --axis: #34414D;
+      --focus: #8DB8F5;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0E1318;
+    --surface: #141B21;
+    --surface-2: #1A232B;
+    --ink: #E6EBEF;
+    --ink-2: #B5C0CA;
+    --muted: #8995A1;
+    --rule: #25303A;
+    --rule-2: #34414D;
+    --drv-ink: #F0B650;
+    --peer-ink: #8DB8F5;
+    --drv-wash: rgba(196, 134, 28, 0.15);
+    --peer-wash: rgba(90, 146, 222, 0.13);
+    --c-drv: #C4861C;
+    --c-peer: #5A92DE;
+    --c-lone: #5C6773;
+    --c-ord1: #3A66A6;
+    --c-ord2: #5A92DE;
+    --c-ord3: #A9C8F4;
+    --grid: #1E2830;
+    --axis: #34414D;
+    --focus: #8DB8F5;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.6);
+  }
+
+  /* ---------- base ---------- */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    font-optical-sizing: auto;
+    text-rendering: optimizeLegibility;
+  }
+  img, svg { max-width: 100%; }
+  a { color: inherit; text-decoration-line: underline; text-decoration-color: var(--rule-2); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:hover { color: var(--peer-ink); text-decoration-color: var(--peer-ink); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+  p { margin: 0 0 1rem; max-width: 68ch; }
+  strong { font-weight: 650; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); }
+  .t-drv { color: var(--drv-ink); }
+  .t-peer { color: var(--peer-ink); }
+  .nowrap { white-space: nowrap; }
+
+  /* ---------- math ---------- */
+  mjx-container .drv, mjx-container .drv * { fill: var(--drv-ink); }
+  mjx-container .peer, mjx-container .peer * { fill: var(--peer-ink); }
+  mjx-container[jax="SVG"][display="true"] { margin: 0.35em 0 !important; }
+  .eq { margin: 1rem 0 1.25rem; overflow-x: auto; overflow-y: hidden; padding-block: 2px; }
+
+  /* ---------- masthead ---------- */
+  .masthead { padding-block: clamp(40px, 7vw, 84px) clamp(30px, 4.5vw, 52px); border-bottom: 1px solid var(--rule); }
+  .eyebrow { display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; margin: 0; font-family: var(--f-mono); font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .title { display: flex; flex-direction: column; align-items: flex-start; gap: 0.26em; margin: 1rem 0 0; font-family: var(--f-display); font-weight: 800; font-size: clamp(2.3rem, 6.4vw, 4.3rem); line-height: 1.02; letter-spacing: -0.018em; }
+  .tl { position: relative; display: inline-block; padding-bottom: 0.2em; }
+  .tl svg { position: absolute; left: 0; bottom: 0; width: 100%; height: 0.22em; overflow: visible; }
+  .tl path { fill: none; stroke-width: 2.5; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
+  .tl-alone path { stroke: var(--c-lone); }
+  .tl-together path { stroke: var(--c-peer); }
+  .subtitle { margin: 1.5rem 0 0; max-width: 44ch; font-family: var(--f-display); font-weight: 400; font-size: clamp(1.12rem, 2.2vw, 1.4rem); line-height: 1.35; color: var(--ink-2); text-wrap: balance; }
+  .lede { max-width: 62ch; margin: 1.3rem 0 0; font-size: 1.12rem; color: var(--ink-2); }
+  .jump { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.7rem; }
+  .jump a { display: inline-flex; align-items: baseline; gap: 0.45rem; padding: 0.5rem 0.9rem; border: 1px solid var(--rule-2); border-radius: 999px; background: var(--surface); font-family: var(--f-display); font-weight: 600; font-size: 0.92rem; text-decoration: none; color: var(--ink); }
+  .jump a:hover { border-color: var(--c-peer); color: var(--peer-ink); }
+  .jump b { font-family: var(--f-mono); font-weight: 600; font-size: 0.8rem; color: var(--muted); }
+
+  /* ---------- layout ---------- */
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr); }
+  main { min-width: 0; max-width: 800px; }
+  .toc { display: none; }
+  @media (min-width: 1100px) {
+    .layout { grid-template-columns: 196px minmax(0, 1fr); gap: 64px; }
+    .toc { display: block; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow: auto; padding-top: 64px; font-family: var(--f-display); }
+  }
+  .toc-h { margin: 0 0 0.7rem; font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .toc ol { list-style: none; margin: 0; padding: 0; }
+  .toc a { display: block; padding: 0.3rem 0 0.3rem 0.8rem; border-left: 2px solid var(--rule); font-size: 0.9rem; font-weight: 600; line-height: 1.3; text-decoration: none; color: var(--ink-2); }
+  .toc a.sub { padding-left: 1.35rem; font-size: 0.84rem; font-weight: 400; color: var(--muted); }
+  .toc a:hover { color: var(--ink); }
+  .toc a.is-active { border-left-color: var(--c-peer); color: var(--ink); }
+
+  /* ---------- sections ---------- */
+  .part { padding-top: clamp(52px, 7vw, 88px); }
+  .kicker { margin: 0; font-family: var(--f-mono); font-size: 0.76rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  h2 { margin: 0.55rem 0 1.3rem; font-family: var(--f-display); font-weight: 800; font-size: clamp(1.8rem, 3.8vw, 2.55rem); line-height: 1.08; letter-spacing: -0.012em; text-wrap: balance; }
+  h3 { margin: 2.8rem 0 0.8rem; font-family: var(--f-display); font-weight: 700; font-size: 1.34rem; line-height: 1.25; text-wrap: balance; }
+  h4 { margin: 0 0 0.45rem; font-family: var(--f-display); font-weight: 700; font-size: 1.02rem; line-height: 1.3; }
+  .lead { font-size: 1.12rem; color: var(--ink-2); }
+  .colorkey { display: flex; flex-wrap: wrap; gap: 0.5rem 1.4rem; align-items: center; margin: 1.2rem 0 0.4rem; padding: 0.7rem 0.95rem; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); font-family: var(--f-display); font-size: 0.88rem; color: var(--ink-2); }
+  .colorkey b { font-weight: 700; }
+  .swatch { display: inline-block; width: 0.8em; height: 0.8em; margin-right: 0.45em; border-radius: 3px; vertical-align: -0.05em; }
+  .swatch.drv { background: var(--c-drv); }
+  .swatch.peer { background: var(--c-peer); }
+
+  /* definition-style term lists */
+  .terms { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.5rem 1.2rem; margin: 0.9rem 0 1.4rem; font-size: 0.99rem; }
+  .terms dt { color: var(--ink); white-space: nowrap; }
+  .terms dd { margin: 0; color: var(--ink-2); }
+  @media (max-width: 560px) { .terms { grid-template-columns: minmax(0, 1fr); gap: 0.1rem; } .terms dd { margin-bottom: 0.6rem; } }
+
+  /* tables */
+  .tbl { margin: 1.3rem 0 1.6rem; overflow-x: auto; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+  th, td { padding: 0.72rem 0.9rem; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+  thead th { background: var(--surface-2); font-family: var(--f-display); font-size: 0.84rem; font-weight: 700; color: var(--ink-2); }
+  tbody tr:last-child > * { border-bottom: 0; }
+  tbody th { font-family: var(--f-display); font-weight: 700; color: var(--ink); }
+  tr.ours > * { background: var(--peer-wash); }
+  .tbl-kinds table { min-width: 680px; }
+  .tbl-overview table { min-width: 760px; font-size: 0.9rem; }
+  .tbl-overview tbody th { width: 8.5rem; font-size: 0.82rem; letter-spacing: 0.02em; color: var(--ink-2); }
+  .tbl-small table { font-size: 0.92rem; }
+  .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .res { font-family: var(--f-display); font-weight: 600; white-space: nowrap; }
+  .res::before { content: ""; display: inline-block; width: 0.6em; height: 0.6em; margin-right: 0.45em; border-radius: 50%; vertical-align: 0.02em; }
+  .res.go { color: var(--ink); }
+  .res.go::before { background: var(--ink); }
+  .res.stop { color: var(--muted); }
+  .res.stop::before { border: 1.5px solid var(--muted); }
+  .tag-ours { display: inline-block; margin-left: 0.4rem; padding: 0.05rem 0.4rem; border-radius: 4px; background: var(--c-peer); font-family: var(--f-mono); font-size: 0.66rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; vertical-align: 0.1em; }
+
+  /* reasons */
+  .reasons { margin: 1.2rem 0 0.5rem; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+  .reasons li { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 1.3rem; padding: 1.1rem 0; border-bottom: 1px solid var(--rule); }
+  .reasons h4 { margin-top: 0.1rem; }
+  .reasons p:last-child { margin-bottom: 0; }
+  @media (max-width: 680px) { .reasons li { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; } }
+
+  /* checks */
+  .checks { display: grid; gap: 0.7rem; margin: 1rem 0 1.4rem; padding: 0; list-style: none; }
+  .checks li { display: grid; grid-template-columns: 9.6rem minmax(0, 1fr); gap: 1rem; align-items: baseline; }
+  .checks .tag { justify-self: start; padding: 0.14rem 0.5rem; border: 1px solid var(--rule-2); border-radius: 6px; font-family: var(--f-mono); font-size: 0.74rem; letter-spacing: 0.01em; white-space: nowrap; color: var(--ink-2); }
+  @media (max-width: 560px) { .checks li { grid-template-columns: minmax(0, 1fr); gap: 0.25rem; } }
+
+  /* examples */
+  .example { margin-top: 2.6rem; }
+  .example h3 { margin-top: 0.4rem; }
+
+  /* figures */
+  .fig { margin: 1.6rem 0 2.2rem; padding: clamp(14px, 2.4vw, 22px); border: 1px solid var(--rule); border-radius: 14px; background: var(--surface); }
+  .fig figcaption { margin-top: 0.85rem; font-size: 0.93rem; line-height: 1.55; color: var(--ink-2); }
+  .fig figcaption b { font-family: var(--f-display); font-weight: 700; color: var(--ink); }
+  .fig-title { margin: 0 0 0.6rem; font-family: var(--f-display); font-weight: 700; font-size: 1rem; }
+  .diagram-scroll { overflow-x: auto; }
+  .diagram { display: block; width: 100%; min-width: 600px; height: auto; }
+  .dg-box { fill: var(--surface); stroke: var(--rule-2); stroke-width: 1; }
+  .dg-peer { fill: var(--peer-wash); stroke: var(--c-peer); }
+  .dg-cond { fill: var(--drv-wash); stroke: var(--c-drv); }
+  .dg-chip { fill: var(--surface); stroke: var(--c-peer); stroke-width: 1; }
+  .dg-gain { fill: var(--surface); stroke: var(--c-drv); stroke-width: 1.5; }
+  .dg-t { font-family: var(--f-display); font-size: 15px; font-weight: 700; fill: var(--ink); }
+  .dg-s { font-family: var(--f-display); font-size: 12.5px; fill: var(--ink-2); }
+  .dg-c { font-family: var(--f-display); font-size: 13px; font-weight: 700; fill: var(--peer-ink); }
+  .dg-g { font-family: var(--f-display); font-size: 13px; font-weight: 700; fill: var(--drv-ink); }
+  .dg-l { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 0.06em; fill: var(--muted); }
+  .dg-l.peer { fill: var(--peer-ink); }
+  .dg-l.drv { fill: var(--drv-ink); }
+  .dg-flow { fill: none; stroke: var(--ink-2); stroke-width: 1.5; }
+  .dg-flow.peer { stroke: var(--c-peer); }
+  .dg-flow.drv { stroke: var(--c-drv); }
+  .dg-head { fill: var(--ink-2); }
+  .dg-head.peer { fill: var(--c-peer); }
+  .dg-head.drv { fill: var(--c-drv); }
+
+  /* interactive controls */
+  .controls { display: flex; flex-wrap: wrap; gap: 0.9rem 1.6rem; align-items: flex-end; margin: 0.2rem 0 0.9rem; }
+  .ctl { display: grid; gap: 0.25rem; flex: 1 1 230px; max-width: 320px; }
+  .ctl label { display: flex; justify-content: space-between; gap: 1rem; font-family: var(--f-display); font-size: 0.86rem; font-weight: 600; color: var(--ink-2); }
+  .ctl output { font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+  input[type="range"] { width: 100%; margin: 0.2rem 0 0; accent-color: var(--c-peer); }
+  .presets { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .presets button { padding: 0.42rem 0.72rem; border: 1px solid var(--rule-2); border-radius: 999px; background: var(--surface); font: 600 0.8rem/1.1 var(--f-display); color: var(--ink-2); cursor: pointer; }
+  .presets button:hover { border-color: var(--c-peer); color: var(--ink); }
+  .presets button[aria-pressed="true"] { border-color: var(--c-peer); background: var(--peer-wash); color: var(--peer-ink); }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.35rem 1.2rem; margin: 0.1rem 0 0.4rem; padding: 0; list-style: none; font-family: var(--f-display); font-size: 0.86rem; color: var(--ink-2); }
+  .legend li { display: inline-flex; align-items: center; gap: 0.45rem; }
+  .legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; border-radius: 2px; }
+  .legend i.area { height: 10px; border-top-width: 2px; background: var(--drv-wash); }
+
+  /* charts */
+  .viz { position: relative; }
+  .viz-plot { width: 100%; cursor: crosshair; touch-action: pan-y; }
+  .viz-plot:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 6px; }
+  .viz svg { display: block; overflow: visible; }
+  .viz text { font-family: var(--f-mono); font-size: 11px; fill: var(--muted); }
+  .viz .ptitle { font-family: var(--f-display); font-size: 12.5px; font-weight: 600; fill: var(--ink-2); }
+  .viz .xlab { font-family: var(--f-display); font-size: 12px; fill: var(--muted); }
+  .viz .grid { stroke: var(--grid); stroke-width: 1; }
+  .viz .axis { stroke: var(--axis); stroke-width: 1; }
+  .viz .ref { stroke: var(--ink-2); stroke-width: 1; }
+  .viz .reflab { fill: var(--ink-2); font-weight: 600; }
+  .viz .note { fill: var(--muted); }
+  .viz .mlab { fill: var(--ink); font-weight: 600; }
+  .viz .cross { stroke: var(--ink-2); stroke-width: 1; }
+  .viz .dot { stroke: var(--surface); stroke-width: 2; }
+  .viz-tip { position: absolute; top: 0; left: 0; z-index: 2; min-width: 10.5rem; padding: 0.5rem 0.65rem; border: 1px solid var(--rule-2); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); pointer-events: none; font-family: var(--f-display); font-size: 0.8rem; line-height: 1.4; opacity: 0; transform: translateY(3px); transition: opacity 0.12s ease, transform 0.12s ease; }
+  .viz-tip.on { opacity: 1; transform: none; }
+  .viz-tip .tt { margin-bottom: 0.25rem; font-family: var(--f-mono); font-size: 0.72rem; color: var(--muted); }
+  .viz-tip .row { display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; }
+  .viz-tip .row i { display: inline-block; width: 12px; border-top: 2px solid; }
+  .viz-tip .row b { font-family: var(--f-mono); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .viz-tip .row span { color: var(--ink-2); }
+  .readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.8rem 1.2rem; margin-top: 1rem; }
+  .stat { padding-top: 0.55rem; border-top: 1px solid var(--rule); }
+  .stat .k { font-family: var(--f-display); font-size: 0.78rem; color: var(--muted); }
+  .stat .v { font-family: var(--f-display); font-weight: 700; font-size: 1.3rem; line-height: 1.3; color: var(--ink); }
+  .stat .s { font-family: var(--f-mono); font-size: 0.74rem; color: var(--ink-2); }
+  details.data { margin-top: 0.9rem; }
+  details.data summary { cursor: pointer; font-family: var(--f-display); font-size: 0.86rem; font-weight: 600; color: var(--ink-2); }
+  details.data .tbl { margin: 0.7rem 0 0; max-height: 320px; overflow: auto; }
+  details.data table { font-family: var(--f-mono); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+  details.data th, details.data td { padding: 0.35rem 0.7rem; }
+  .mini { margin: 0.9rem 0 0.2rem; }
+
+  /* benchmark sections */
+  .bench { margin-top: clamp(40px, 6vw, 60px); padding-top: clamp(36px, 5vw, 52px); border-top: 1px solid var(--rule); }
+  .bench-name { margin: 0; font-family: var(--f-display); font-weight: 800; font-size: clamp(1.5rem, 3.1vw, 1.95rem); line-height: 1.15; letter-spacing: -0.01em; }
+  .bench-name small { display: block; margin-bottom: 0.4rem; font-family: var(--f-mono); font-size: 0.74rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.8rem 0 1.2rem; padding: 0; list-style: none; }
+  .chips li { padding: 0.3rem 0.6rem; border-radius: 6px; background: var(--surface-2); font-family: var(--f-display); font-size: 0.8rem; font-weight: 600; color: var(--ink-2); }
+  .chips li.anchor { background: var(--drv-wash); color: var(--drv-ink); }
+  .model { margin: 1.6rem 0 1.2rem; border-top: 1px solid var(--rule); }
+  .mrow { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr); gap: 1.1rem; padding: 1.2rem 0 0.4rem; border-bottom: 1px solid var(--rule); }
+  .mtag { font-family: var(--f-display); font-weight: 800; font-size: 1.55rem; line-height: 1; color: var(--ink); }
+  .mtag span { display: block; margin-top: 0.4rem; font-family: var(--f-mono); font-size: 0.6rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .mtag.d { color: var(--drv-ink); }
+  .mbody { min-width: 0; }
+  .mbody > p { max-width: 64ch; }
+  @media (max-width: 560px) { .mrow { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; } .mtag span { display: inline; margin-left: 0.5rem; } }
+  .origin { margin: 1.6rem 0 1.8rem; padding: clamp(18px, 3vw, 28px); border: 1px solid var(--rule); border-radius: 14px; background: var(--surface); }
+  .origin .kicker { color: var(--drv-ink); }
+  .origin h4 { margin: 0.45rem 0 0.8rem; font-size: 1.22rem; line-height: 1.3; text-wrap: balance; }
+  .compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem; margin: 1.2rem 0 1rem; }
+  .compare .cell { padding: 0.8rem 0.95rem; border-radius: 10px; background: var(--surface-2); }
+  .compare .k { font-family: var(--f-display); font-size: 0.82rem; color: var(--ink-2); }
+  .compare .v { margin-top: 0.15rem; font-family: var(--f-display); font-weight: 800; font-size: 1.6rem; line-height: 1.2; color: var(--ink); }
+  .compare .s { font-family: var(--f-mono); font-size: 0.74rem; color: var(--muted); }
+  .aside { margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid var(--rule); font-size: 0.93rem; color: var(--muted); }
+  .note-inline { font-size: 0.95rem; color: var(--ink-2); }
+
+  /* references + footer */
+  .refs { margin: 1rem 0 0; padding-left: 1.2rem; font-size: 0.92rem; color: var(--ink-2); }
+  .refs li { margin-bottom: 0.5rem; max-width: 72ch; }
+  .foot { margin-top: 72px; padding-block: 28px 56px; border-top: 1px solid var(--rule); font-family: var(--f-display); font-size: 0.86rem; color: var(--muted); }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .viz-tip { transition: none; }
+  }
+</style>
 </head>
 <body>
-    <h1>Hello World</h1>
-    <p>This is your blank demo page.</p>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow"><span>Under review at ICLR 2027</span><span>Anonymous authors</span><span>Code released upon acceptance</span></p>
+    <h1 class="title">
+      <span class="tl tl-alone">Stationary Alone,<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><path d="M0 8.5 L100 8.5"/></svg></span>
+      <span class="tl tl-together">Drifting Together<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><path d="M0 8.5 L2.5 8.33 L5 7.83 L7.5 7.06 L10 6.08 L12.5 5 L15 3.92 L17.5 2.94 L20 2.17 L22.5 1.67 L25 1.5 L27.5 1.67 L30 2.17 L32.5 2.94 L35 3.92 L37.5 5 L40 6.08 L42.5 7.06 L45 7.83 L47.5 8.33 L50 8.5 L100 8.5"/></svg></span>
+    </h1>
+    <p class="subtitle">Adapting to <span class="nowrap">interaction-mediated</span> nonstationarity in <span class="nowrap">multi-agent</span> reinforcement learning</p>
+    <p class="lede">Rain, sunshine and heat can change how strongly agents that share infrastructure affect one another, while each agent on its own behaves exactly as before. This page explains that kind of drift, shows where it occurs in practice, and describes how each of our four benchmarks models it.</p>
+    <nav class="jump" aria-label="Sections">
+      <a href="#problem"><b>1</b>The problem</a>
+      <a href="#benchmarks"><b>2</b>The four benchmarks</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap layout">
+  <nav class="toc" aria-label="On this page">
+    <p class="toc-h">On this page</p>
+    <ol>
+      <li><a href="#problem">1 · The problem</a></li>
+      <li><a class="sub" href="#shared">Shared infrastructure</a></li>
+      <li><a class="sub" href="#split">What happens to one agent</a></li>
+      <li><a class="sub" href="#kinds">Three kinds of drift</a></li>
+      <li><a class="sub" href="#why">Why it needs its own treatment</a></li>
+      <li><a class="sub" href="#ex-road">Example: cars in the rain</a></li>
+      <li><a class="sub" href="#ex-feeder">Example: inverters at noon</a></li>
+      <li><a href="#benchmarks">2 · The four benchmarks</a></li>
+      <li><a class="sub" href="#structure">Common structure</a></li>
+      <li><a class="sub" href="#urb">URB · rain</a></li>
+      <li><a class="sub" href="#mapdn">MAPDN · sun</a></li>
+      <li><a class="sub" href="#vmas">VMAS · shared supply</a></li>
+      <li><a class="sub" href="#ant">Ant · one torso</a></li>
+      <li><a href="#refs">References</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <!-- ================================================================ -->
+    <section id="problem" class="part" aria-labelledby="problem-h">
+      <p class="kicker">1 · The problem</p>
+      <h2 id="problem-h">Drift that lives between agents</h2>
+
+      <section id="shared">
+        <p class="lead">Many multi-agent systems are coupled through a physical medium. Vehicles share roads, solar inverters share the lines of a distribution feeder, and actuators share a power supply or a rigid body. What happens to one agent then has two parts: the effect of its own actions, and the effect of everyone else's use of the medium.</p>
+        <p>External conditions often change only the second part. Rain does not change how a car accelerates or how long its route is. It lowers the capacity of the road, so the same number of other cars now causes more delay. A car alone on the road at night hardly notices the rain. The same car in rush-hour traffic does.</p>
+        <p>We call this <strong>interaction-mediated nonstationarity</strong>. Each agent, taken alone, faces a stationary task. The fleet as a whole faces a drifting one.</p>
+
+        <figure class="fig" id="fig-mechanism">
+          <div class="diagram-scroll">
+            <svg class="diagram" viewBox="0 0 760 262" role="img" aria-labelledby="dg-title dg-desc">
+              <title id="dg-title">Where the external condition acts</title>
+              <desc id="dg-desc">The other agents put load on a shared medium. The medium passes part of that load to agent i as a disturbance, scaled by a gain that the external condition sets. The condition does not act on agent i's own dynamics.</desc>
+              <defs>
+                <marker id="ah-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" class="dg-head"/></marker>
+                <marker id="ah-peer" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" class="dg-head peer"/></marker>
+                <marker id="ah-drv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" class="dg-head drv"/></marker>
+              </defs>
+              <!-- other agents -->
+              <rect x="14" y="52" width="184" height="128" rx="10" class="dg-box dg-peer"/>
+              <text x="32" y="80" class="dg-t">Other agents</text>
+              <text x="32" y="99" class="dg-s">everyone except i</text>
+              <rect x="32" y="118" width="42" height="42" rx="8" class="dg-chip"/>
+              <text x="53" y="144" text-anchor="middle" class="dg-c">j</text>
+              <rect x="84" y="118" width="42" height="42" rx="8" class="dg-chip"/>
+              <text x="105" y="144" text-anchor="middle" class="dg-c">k</text>
+              <rect x="136" y="118" width="42" height="42" rx="8" class="dg-chip"/>
+              <text x="157" y="144" text-anchor="middle" class="dg-c">…</text>
+              <!-- flow: others to medium -->
+              <line x1="198" y1="116" x2="276" y2="116" class="dg-flow peer" marker-end="url(#ah-peer)"/>
+              <text x="237" y="106" text-anchor="middle" class="dg-l peer">LOAD</text>
+              <!-- medium -->
+              <rect x="280" y="52" width="200" height="128" rx="10" class="dg-box"/>
+              <text x="380" y="80" text-anchor="middle" class="dg-t">Shared medium</text>
+              <text x="380" y="99" text-anchor="middle" class="dg-s">road · feeder · supply · torso</text>
+              <rect x="326" y="120" width="108" height="34" rx="17" class="dg-gain"/>
+              <text x="380" y="142" text-anchor="middle" class="dg-g">gain θ(t)</text>
+              <!-- flow: medium to agent i -->
+              <line x1="480" y1="116" x2="558" y2="116" class="dg-flow" marker-end="url(#ah-ink)"/>
+              <text x="519" y="106" text-anchor="middle" class="dg-l">DISTURBANCE</text>
+              <!-- agent i -->
+              <rect x="562" y="52" width="184" height="128" rx="10" class="dg-box"/>
+              <text x="580" y="80" class="dg-t">Agent i</text>
+              <text x="580" y="99" class="dg-s">own dynamics F<tspan baseline-shift="sub" font-size="10">i</tspan></text>
+              <text x="580" y="140" class="dg-s">not touched by</text>
+              <text x="580" y="157" class="dg-s">the condition</text>
+              <!-- condition -->
+              <line x1="380" y1="212" x2="380" y2="158" class="dg-flow drv" marker-end="url(#ah-drv)"/>
+              <text x="390" y="192" class="dg-l drv">SETS</text>
+              <rect x="266" y="212" width="228" height="44" rx="8" class="dg-box dg-cond"/>
+              <text x="380" y="231" text-anchor="middle" class="dg-g">External condition</text>
+              <text x="380" y="248" text-anchor="middle" class="dg-s">rain · sunshine · heat</text>
+            </svg>
+          </div>
+          <figcaption><b>Figure 1.</b> Where the external condition acts. The other agents load a shared medium, and the medium passes part of that load to agent i as a disturbance. The condition sets how large that part is. It never acts on agent i's own dynamics, so if the other agents are removed, nothing reaches agent i whatever the condition.</figcaption>
+        </figure>
+      </section>
+
+      <section id="split">
+        <h3>What happens to one agent, in one equation</h3>
+        <p>Write \(s_i\) for the part of the state that belongs to agent \(i\). Over one step, its evolution separates into a private part and a coupling part:</p>
+        <div class="eq">\[ s_i(t{+}1) \;=\; F_i\big(s_i(t),\,a_i(t)\big) \;\oplus\; C_i\big[\drv{\btheta(t)}\big]\big(\peer{s_{-i}(t),\,\ba_{-i}(t)};\ s_i(t)\big) \]</div>
+        <div class="colorkey" role="note">
+          <span><span class="swatch drv" aria-hidden="true"></span><b class="t-drv">Amber</b>: set by the external condition</span>
+          <span><span class="swatch peer" aria-hidden="true"></span><b class="t-peer">Blue</b>: set by the other agents</span>
+          <span>This colour code is used in every equation on the page.</span>
+        </div>
+        <dl class="terms">
+          <dt>\(F_i(s_i, a_i)\)</dt><dd>The agent on its own: how its state would evolve if no one else used the medium.</dd>
+          <dt>\(C_i(\peer{s_{-i}, \ba_{-i}};\, s_i)\)</dt><dd>The coupling: what the other agents (written \(-i\)) do to agent \(i\) through the medium.</dd>
+          <dt>\(\drv{\btheta(t)}\)</dt><dd>The coupling gains: what one unit of the others' activity costs agent \(i\) at time \(t\). External conditions act here and only here.</dd>
+          <dt>\(\oplus\)</dt><dd>How the two parts combine: by addition (an offset to injected power), by multiplication (a loss of force), or through a realised outcome (a travel time).</dd>
+        </dl>
+      </section>
+
+      <section id="kinds">
+        <h3>Three kinds of drift, and two tests that separate them</h3>
+        <p>From agent \(i\)'s point of view, the environment is nonstationary whenever one ingredient of the equation above changes over time. There are three possibilities, and each has been studied by a different community. Two simple experiments tell them apart: freeze the policies of all other agents, or remove the other agents altogether.</p>
+        <div class="tbl tbl-kinds">
+          <table>
+            <thead>
+              <tr><th scope="col">Kind of drift</th><th scope="col">What changes</th><th scope="col">Freeze the others' policies</th><th scope="col">Remove the others</th><th scope="col">Studied in</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">(A) Learning-induced</th><td>\(\peer{\ba_{-i}(t)}\), because the other agents are learning</td><td><span class="res stop">Drift stops</span></td><td><span class="res stop">Drift stops</span></td><td>Multi-agent RL</td></tr>
+              <tr><th scope="row">(B) Exogenous</th><td>\(F_i\) itself; the world drifts regardless of the other agents</td><td><span class="res go">Drift continues</span></td><td><span class="res go">Drift continues</span></td><td>Nonstationary and continual RL</td></tr>
+              <tr class="ours"><th scope="row">(C) Interaction-mediated<span class="tag-ours">This paper</span></th><td>\(\drv{\btheta(t)}\), while \(F_i\) stays fixed</td><td><span class="res go">Drift continues</span></td><td><span class="res stop">Drift stops</span></td><td>This paper</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Interaction-mediated drift is the only kind that survives freezing every partner and disappears for a lone agent. It survives freezing because a frozen fleet still loads the medium, and the external condition still acts on that load. It disappears for a lone agent because, with no one else on the medium, the coupling term \(C_i\) is zero whatever the condition.</p>
+        <p class="note-inline">Seen as one joint system, (C) is a special case of exogenous drift. What sets it apart is its structure: the drift enters only through the coupling, and it scales with the fleet's own load.</p>
+      </section>
+
+      <section id="why">
+        <h3>Why this drift needs its own treatment</h3>
+        <ul class="reasons">
+          <li>
+            <h4>The harm is a product of two factors</h4>
+            <div>
+              <p>Below saturation, the disturbance an agent receives in our feeder, lift and Ant benchmarks has the form</p>
+              <div class="eq">\[ y_i^{\star}(t) \;=\; \underbrace{\drv{\sigma\,\bar k\,A(t)}}_{\text{set by the condition}} \;\times\; \underbrace{\send^{\top}\peer{\bx_i(t)}}_{\text{set by the other agents}} \]</div>
+              <p>and routing has the same structure through the ratio of traffic volume to rain-reduced capacity. A method that is told the weather still lacks the traffic, and a method that sees the traffic still lacks the weather. With either factor missing, the executed action misses its target by an amount that no amount of training removes.</p>
+            </div>
+          </li>
+          <li>
+            <h4>Only a few numbers are unknown</h4>
+            <div>
+              <p>Each agent knows the infrastructure layout (who shares its medium, and how strongly) and receives its peers' executed actions. Only the gains are unknown: \(r+1\) numbers per agent, where \(r\) is the number of coupling classes (three in our benchmarks), independent of the size of the fleet. These can be estimated online from the agent's own measured shortfall, which is what our method, PACT, does.</p>
+            </div>
+          </li>
+          <li>
+            <h4>Reactions feed back</h4>
+            <div>
+              <p>A correction is itself an action on the medium, so it becomes part of the neighbours' load. Inverters that react to one another can start to oscillate, and vehicles that all follow the same accurate forecast can all switch to the route predicted to be faster and make it slower. How strongly agents should act on their estimates is therefore itself a multi-agent question.</p>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <!-- ---------------- example 1 ---------------- -->
+      <section id="ex-road" class="example">
+        <p class="kicker">Example 1 · URB</p>
+        <h3>Cars on a shared road during the rainy season</h3>
+        <p>The two examples below reduce two of our benchmarks to their smallest form. The equations are the benchmarks' own harms, restricted to a single road link and to a pair of inverters.</p>
+        <p>Car \(i\) follows a route whose busiest link has capacity \(c\), in vehicles per hour. While it travels, the other cars put a volume \(\peer{n_{-i}}\) on that link. Rain removes part of the capacity, and travel time grows with the ratio of volume to capacity, as in the volume–delay curves used in transport planning:</p>
+        <div class="eq">\[ \drv{\omega(t)} = 1 - \drv{\sigma L A(t)}, \qquad \peer{u_i(t)} = \frac{\peer{n_{-i}}}{c\;\drv{\omega(t)}}, \qquad h_i(t) = \frac{1 + \alpha\,u_i(t)}{1 + \alpha\,\peer{n_{-i}}/c} \]</div>
+        <dl class="terms">
+          <dt>\(\drv{A(t)} \in [0,1]\)</dt><dd>Rain intensity over a 100-day cycle: a smooth rise and fall over 50 wet days, then exactly zero on 50 dry days.</dd>
+          <dt>\(\drv{L} = 0.14\)</dt><dd>The capacity lost in heavy rain according to the Highway Capacity Manual, so \(\sigma = 1\) is heavy rain.</dd>
+          <dt>\(\drv{\omega(t)}\)</dt><dd>The fraction of the link's capacity that the rain leaves.</dd>
+          <dt>\(\peer{u_i(t)}\)</dt><dd>The load the other cars put on car \(i\)'s busiest link.</dd>
+          <dt>\(h_i(t)\)</dt><dd>How much longer the trip takes than in dry weather. The slope \(\alpha = 2.28\) is calibrated on the stock benchmark.</dd>
+        </dl>
+        <h4>How it matches the definition</h4>
+        <ul class="checks">
+          <li><span class="tag">Remove others</span><span>With no other cars, \(\peer{n_{-i}} = 0\), so \(u_i = 0\) and \(h_i = 1\) in any rain. The lone car's task is stationary.</span></li>
+          <li><span class="tag">Freeze others</span><span>With every other car on a fixed route, \(h_i\) still rises through the wet season and returns to 1 on dry days. No one learns, and the task still drifts.</span></li>
+          <li><span class="tag">Own dynamics</span><span>The car never changed: same route, same speed limit, same free-flow time. Only the gain \(\drv{\sigma L A(t)}\) moved, and it reaches the car only through \(\peer{n_{-i}}\).</span></li>
+        </ul>
+
+        <figure class="fig" id="fig-road">
+          <p class="fig-title">Delay factor over one wet/dry cycle</p>
+          <div class="controls">
+            <div class="ctl">
+              <label for="road-sigma"><span>Severity σ</span><output id="road-sigma-out" for="road-sigma">1.00</output></label>
+              <input id="road-sigma" type="range" min="0" max="3" step="0.05" value="1">
+            </div>
+            <div class="ctl">
+              <label for="road-load"><span>Dry-weather load n<sub>−i</sub>/c</span><output id="road-load-out" for="road-load">0.22</output></label>
+              <input id="road-load" type="range" min="0" max="0.4" step="0.01" value="0.22">
+            </div>
+            <div class="presets" role="group" aria-label="Severity presets">
+              <button type="button" data-target="road-sigma" data-value="1" aria-pressed="true">σ = 1 · HCM heavy rain</button>
+              <button type="button" data-target="road-sigma" data-value="3" aria-pressed="false">σ = 3 · paper's setting</button>
+            </div>
+          </div>
+          <ul class="legend">
+            <li><i style="border-color: var(--c-peer)"></i>Sharing the road, other cars frozen</li>
+            <li><i style="border-color: var(--c-lone)"></i>Alone on the road</li>
+            <li><i class="area" style="border-color: var(--c-drv)"></i>Rain intensity A(t)</li>
+          </ul>
+          <div class="viz">
+            <div class="viz-plot"></div>
+            <div class="viz-tip" aria-hidden="true"></div>
+          </div>
+          <div class="readout" aria-live="polite">
+            <div class="stat"><div class="k">Peak delay factor</div><div class="v" id="road-peak">1.054</div><div class="s" id="road-peak-s">+5.4% on day 25</div></div>
+            <div class="stat"><div class="k">Average over the cycle</div><div class="v" id="road-avg">1.014</div><div class="s" id="road-avg-s">dry days included</div></div>
+            <div class="stat"><div class="k">Alone on the road</div><div class="v">1.000</div><div class="s">every day, every σ</div></div>
+          </div>
+          <details class="data">
+            <summary>Show the values as a table</summary>
+            <div class="tbl"><table id="road-table"><thead><tr><th scope="col">Day</th><th scope="col">A(t)</th><th scope="col">Alone</th><th scope="col">Sharing</th></tr></thead><tbody></tbody></table></div>
+          </details>
+          <figcaption><b>Figure 2.</b> At the network's average loading (\(n_{-i}/c = 0.22\)), heavy rain lengthens the trip by 5.4% at the peak of the wet season, and \(\sigma = 3\) by 24%. These are peak values for one car on its busiest link. Averaged over the cycle and over the fleet the effect is smaller, which is why the harm is mild on URB. Hover or focus the chart and use the arrow keys to read values.</figcaption>
+        </figure>
+      </section>
+
+      <!-- ---------------- example 2 ---------------- -->
+      <section id="ex-feeder" class="example">
+        <p class="kicker">Example 2 · MAPDN</p>
+        <h3>Two inverters on one feeder on a sunny day</h3>
+        <p>Inverters \(i\) and \(j\) sit on the same radial feeder and share part of their path to the substation. Reactive power injected at \(j\) shifts the voltage at \(i\) in proportion to the reactance of the lines they share. Each inverter's firmware follows a Volt/VAr curve and answers a voltage change with reactive power of the opposite sign. At night the voltage sits in the curve's flat deadband and nothing happens. Under the midday sun it sits on the sloped part, and every injection by the neighbour provokes a reaction:</p>
+        <div class="eq">\[ \Delta v_i(t) = S_{ij}\;\peer{q_j(t{-}1)}, \qquad S_{ij} = \sum_{b\,\in\,\mathrm{path}(i)\,\cap\,\mathrm{path}(j)} \frac{X_b}{V_b^{2}} \]</div>
+        <div class="eq">\[ d_i(t) = -\,\drv{\sigma k A(t)}\;\bar s_i\;\Delta v_i(t), \qquad q_i^{\ex}(t) = q_i^{\sent}(t) + d_i(t) \]</div>
+        <dl class="terms">
+          <dt>\(S_{ij}\)</dt><dd>Voltage sensitivity of the shared lines (linearised DistFlow): \(X_b\) and \(V_b\) are the reactance and nominal voltage of branch \(b\).</dd>
+          <dt>\(\drv{k}\)</dt><dd>The Volt/VAr slope. \(\sigma = 1\) is the IEEE 1547 Category B default curve, and \(\sigma = 3\) the steepest curve the standard allows.</dd>
+          <dt>\(\drv{A(t)}\)</dt><dd>The solar profile: \(\sin^2\) between 06:00 and 18:00, exactly zero at night.</dd>
+          <dt>\(\bar s_i\)</dt><dd>The inverter's rating; its reaction is proportional to its size.</dd>
+          <dt>\(q_i^{\sent},\ q_i^{\ex}\)</dt><dd>The reactive power the inverter was told to inject, and what it actually injects.</dd>
+        </dl>
+        <h4>How it matches the definition</h4>
+        <ul class="checks">
+          <li><span class="tag">Remove others</span><span>Without \(j\) there is no shared path, so \(\Delta v_i = 0\) and \(d_i = 0\) at any hour and any severity.</span></li>
+          <li><span class="tag">Freeze others</span><span>With \(q_j\) held fixed, \(d_i\) still swings from zero at night to its largest value at noon.</span></li>
+          <li><span class="tag">Own dynamics</span><span>The inverter hardware is unchanged. Only the gain \(\drv{\sigma k A(t)}\) moved.</span></li>
+        </ul>
+        <p>This example also shows why reactions matter. Inverter \(j\) reacts to \(i\) in the same way, so each reaction becomes the input to the other's next one. For the whole fleet, with no compensation,</p>
+        <div class="eq">\[ \mathbf q^{\ex}(t) = \mathbf q^{\cmd}(t) \;-\; \drv{\sigma k A(t)}\;G\;\peer{\mathbf q^{\ex}(t{-}1)}, \qquad G = \operatorname{diag}(\bar{\mathbf s})\,S, \qquad \Theta(t) = \drv{\sigma k A(t)}\;\rho(G) \]</div>
+        <p>where \(\rho(G)\) is the spectral radius of \(G\). The mutual reactions die out when the loop gain \(\Theta(t)\) is below 1 and grow when it is above 1: the fleet starts to oscillate, which grid engineers call hunting. For two identical inverters \(\rho(G) = \bar s\, S_{ij}\). A single inverter has \(\rho(G) = 0\) and never hunts.</p>
+
+        <figure class="fig" id="fig-feeder">
+          <p class="fig-title">Loop gain over one day on the paper's three feeders</p>
+          <div class="controls">
+            <div class="ctl">
+              <label for="feeder-sigma"><span>Severity σ</span><output id="feeder-sigma-out" for="feeder-sigma">1.00</output></label>
+              <input id="feeder-sigma" type="range" min="0" max="3" step="0.05" value="1">
+            </div>
+            <div class="presets" role="group" aria-label="Severity presets">
+              <button type="button" data-target="feeder-sigma" data-value="1" aria-pressed="true">σ = 1 · IEEE 1547 default</button>
+              <button type="button" data-target="feeder-sigma" data-value="3" aria-pressed="false">σ = 3 · steepest allowed</button>
+            </div>
+          </div>
+          <ul class="legend">
+            <li><i style="border-color: var(--c-ord1)"></i>6 inverters</li>
+            <li><i style="border-color: var(--c-ord2)"></i>22 inverters (main feeder)</li>
+            <li><i style="border-color: var(--c-ord3)"></i>38 inverters</li>
+            <li><i class="area" style="border-color: var(--c-drv)"></i>Solar profile A(t)</li>
+          </ul>
+          <div class="viz">
+            <div class="viz-plot"></div>
+            <div class="viz-tip" aria-hidden="true"></div>
+          </div>
+          <div class="tbl tbl-small" aria-live="polite">
+            <table>
+              <thead><tr><th scope="col">Feeder</th><th scope="col">kρ(G)</th><th scope="col">Θ at noon</th><th scope="col">Reactions grow (Θ &gt; 1)</th><th scope="col">Noon threshold σ<sub>c</sub></th></tr></thead>
+              <tbody id="feeder-rows"></tbody>
+            </table>
+          </div>
+          <details class="data">
+            <summary>Show the values as a table</summary>
+            <div class="tbl"><table id="feeder-table"><thead><tr><th scope="col">Time</th><th scope="col">A(t)</th><th scope="col">Θ, 6 inv.</th><th scope="col">Θ, 22 inv.</th><th scope="col">Θ, 38 inv.</th></tr></thead><tbody></tbody></table></div>
+          </details>
+          <figcaption><b>Figure 3.</b> The measured values of \(k\rho(G)\) are 0.378, 0.675 and 1.186 for the feeders with 6, 22 and 38 inverters, so the midday thresholds \(\sigma_c = 1/(k\rho(G))\) are 2.65, 1.48 and 0.84. Larger fleets hunt under milder conditions, and the paper's main 22-inverter feeder is past its threshold at \(\sigma = 3\), a curve the standard still allows. A lone inverter stays at \(\Theta = 0\), the horizontal axis. In the full power-flow model the inverters' reactive-power limits keep the oscillation bounded.</figcaption>
+        </figure>
+
+        <p>In both examples the agent's own dynamics never change, the condition acts only through the other agents, and the effect scales with how heavily they use the medium. The same structure appears in all four benchmarks.</p>
+      </section>
+    </section>
+
+    <!-- ================================================================ -->
+    <section id="benchmarks" class="part" aria-labelledby="bench-h">
+      <p class="kicker">2 · The benchmarks</p>
+      <h2 id="bench-h">Four benchmarks, one structure</h2>
+
+      <section id="structure">
+        <p class="lead">Each benchmark is used exactly as published when \(\sigma = 0\). Raising \(\sigma\) strengthens an external condition whose effect on an agent scales with the other agents' load on the shared medium. The reward function is never modified: agents earn less only because the physics delivers less.</p>
+        <p>Every instance declares the same four objects.</p>
+        <dl class="terms">
+          <dt><strong>M</strong> · medium</dt><dd>What the agents use together, and the load \(\phi_j\) that each user \(j\) puts on it.</dd>
+          <dt><strong>W</strong> · coupling</dt><dd>A fixed operator computed from the infrastructure layout: which agents affect which, and how strongly.</dd>
+          <dt><strong class="t-drv">D</strong> · driver</dt><dd>An external condition \(\drv{A(t)} \in [0,1]\), from no effect (0) to full effect (1). No agent can influence it.</dd>
+          <dt><strong>H</strong> · harm</dt><dd>How the condition, at intensity \(\drv{\sigma A(t)}\), turns the peers' load into a disturbance.</dd>
+        </dl>
+        <p>At severity \(\sigma\), the action \(a_i\) that agent \(i\) sends is executed as</p>
+        <div class="eq">\[ a_i^{\ex}(t) = h\big(\drv{\sigma A(t)},\ \peer{\bx_i(t)};\ a_i(t)\big), \qquad \peer{\bx_i(t)} = \Lambda_i\big(\bx_i(t{-}1),\ \{\phi_j(a_j^{\ex}(t{-}1))\}_{j\neq i};\ W\big) \in \R^{r} \]</div>
+        <p>The channels \(\peer{\bx_i}\) summarise the other agents' executed load through \(W\), one channel per coupling class, possibly filtered over time. They are exactly zero when agent \(i\) is alone. The harm map does nothing when either factor is absent, \(h(0, \bx; a) = h(\xi, \mathbf 0; a) = a\), which is what makes both tests of Section 1 hold by construction. In routing the harm acts on the realised travel time instead of the action.</p>
+
+        <h4>All four drivers share one shape</h4>
+        <p>Each driver is a smooth bump over the active half of its cycle and exactly zero over the other half:</p>
+        <div class="eq">\[ \drv{A(t)} = \begin{cases} \sin^2\!\big(\pi\,\varphi(t)/w\big), &amp; \varphi(t) \lt w,\\[2pt] 0, &amp; \text{otherwise,} \end{cases} \qquad \varphi(t) = \frac{(t - t_0) \bmod T}{T}, \qquad w = \tfrac12 \]</div>
+        <p>The zero half is a built-in control: on those steps every benchmark is the unmodified original at every \(\sigma\). The agents are told neither the period nor the phase.</p>
+
+        <div class="tbl tbl-overview">
+          <table>
+            <thead>
+              <tr><th scope="col"></th><th scope="col">URB</th><th scope="col">MAPDN</th><th scope="col">VMAS Balance</th><th scope="col">MaMuJoCo Ant</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Task</th><td>Route choice for connected vehicles</td><td>Voltage control with PV inverters</td><td>Cooperative lifting</td><td>Four-legged locomotion</td></tr>
+              <tr><th scope="row">Agents</th><td>89 vehicles among 222 travellers</td><td>22 inverters, 141-bus feeder</td><td>4 lifters</td><td>4 legs, 2 joints each</td></tr>
+              <tr><th scope="row">M · medium</th><td>Road links</td><td>Feeder lines</td><td>Shared supply</td><td>The robot's torso</td></tr>
+              <tr><th scope="row">W · coupling</th><td>Shared links, over capacity</td><td>Voltage sensitivity of shared lines</td><td>Distance between actuators</td><td>The robot's own inverse inertia</td></tr>
+              <tr><th scope="row">D · driver</th><td>Rain, 100-day wet/dry cycle</td><td>Sun, 06:00–18:00 each day</td><td>Supply softening, 100-step cycle</td><td>Drivetrain warm-up, 20,000-step cycle</td></tr>
+              <tr><th scope="row">H · harm</th><td>Longer travel time</td><td>Unrequested reactive power</td><td>Lost force</td><td>Unrequested joint torque</td></tr>
+              <tr><th scope="row">Acts on</th><td>Outcome</td><td>Action, additive</td><td>Action, multiplicative</td><td>Action, additive</td></tr>
+              <tr><th scope="row">Inverse</th><td>None: steer the route choice</td><td>Subtract</td><td>Divide</td><td>Subtract</td></tr>
+              <tr><th scope="row">σ = 1 means</th><td>HCM heavy rain (published)</td><td>IEEE 1547 default curve (published)</td><td>Stated calibration</td><td>Stated calibration</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ---------------- URB ---------------- -->
+      <section id="urb" class="bench" aria-labelledby="urb-h">
+        <h3 id="urb-h" class="bench-name"><small>Where the phenomenon comes from</small>URB · routing in the rain</h3>
+        <ul class="chips">
+          <li>Harm on travel time</li>
+          <li>No inverse: route steering</li>
+          <li class="anchor">σ = 1: HCM heavy rain</li>
+        </ul>
+        <p>Connected autonomous vehicles choose routes through a real road network, simulated in SUMO, alongside human drivers that no agent controls (Akman et al., 2025). We use the <span class="nowrap">saint_arnoult</span> network: 222 travellers, of whom 89 are controlled, 745 links, 215 origin–destination pairs and 4 candidate routes per traveller. Each simulated day is one decision.</p>
+
+        <div class="origin">
+          <p class="kicker">Origin of the phenomenon</p>
+          <h4>Rain and traffic: measured by traffic engineers, not constructed by us</h4>
+          <p>Rain lowers the number of vehicles a road can serve per hour, because drivers keep longer headways and accelerate more gently. The Highway Capacity Manual tabulates this effect as weather adjustment factors for capacity, and field studies of freeways report the same pattern (Smith et al., 2004; Agarwal et al., 2005). In heavy rain, capacity falls by about 14%. That is the value we use for \(\sigma = 1\).</p>
+          <p>Lost capacity only costs time when traffic needs it. On an empty road at night, a driver in heavy rain loses almost no time to congestion, because the capacity that remains is still far more than one car needs. At rush hour the same rain produces queues. The extra delay a driver suffers is therefore set jointly by the weather and by the other drivers. This is interaction-mediated nonstationarity as it occurs in everyday traffic. We first observed the structure in URB, and it is the model for the definition we apply to the other three benchmarks.</p>
+          <div class="compare">
+            <div class="cell"><div class="k">Heavy rain, empty road</div><div class="v">1.000</div><div class="s">delay factor · no other cars</div></div>
+            <div class="cell"><div class="k">Heavy rain, average URB loading</div><div class="v">1.054</div><div class="s">delay factor · peak of the wet season</div></div>
+          </div>
+          <p class="aside">Rain also lowers free-flow speed slightly, and a lone driver feels that part. It is ordinary exogenous drift, type (B). The benchmark models only the capacity effect, which is the part that depends on other traffic.</p>
+        </div>
+
+        <div class="model">
+          <div class="mrow">
+            <div class="mtag">M<span>Medium</span></div>
+            <div class="mbody">
+              <h4>Road links</h4>
+              <p>Agent \(i\)'s load is taken on the busiest link of its chosen route: the flow of other vehicles over the capacity that the rain leaves.</p>
+              <div class="eq">\[ \peer{u_i}(\ba;\bomega) \;=\; \max_{e\,\in\,a_i}\ \frac{\peer{\sum_{j\neq i} O_{ij}\,\ind{e\in a_j}}}{T_i\;c_e\;\drv{\omega_e}} \]</div>
+              <dl class="terms">
+                <dt>\(\ind{e \in a_j}\)</dt><dd>Whether traveller \(j\)'s route uses link \(e\).</dd>
+                <dt>\(O_{ij}\)</dt><dd>Temporal overlap: whether \(i\) and \(j\) are on the road at the same time.</dd>
+                <dt>\(T_i\)</dt><dd>The duration of \(i\)'s trip, which turns a vehicle count into a flow.</dd>
+                <dt>\(c_e\)</dt><dd>Capacity of link \(e\): number of lanes × 600 vehicles per hour.</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="mtag">W<span>Coupling</span></div>
+            <div class="mbody">
+              <h4>Who shares which link, and when</h4>
+              <p>Link sharing weighted by temporal overlap and capacity, read from the road network and the departure schedule before any training.</p>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="mtag d">D<span>Driver</span></div>
+            <div class="mbody">
+              <h4>Rain over a 100-day wet/dry cycle</h4>
+              <p>Rain leaves link \(e\) a fraction \(\omega_e\) of its capacity:</p>
+              <div class="eq">\[ \drv{\omega_e(t)} = \clip\big(1 - \drv{\sigma L A(t)}\,\eta_e,\ \underline{\omega},\ 1\big), \qquad L = 0.14 \]</div>
+              <p>\(\eta_e \in [0.4, 2.0]\) is a per-link rain sensitivity derived from the link's design speed, so faster roads lose more capacity, and the floor \(\underline{\omega}\) keeps every link open.</p>
+              <div class="viz mini" id="drv-urb"><div class="viz-plot"></div><div class="viz-tip" aria-hidden="true"></div></div>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="mtag">H<span>Harm</span></div>
+            <div class="mbody">
+              <h4>A longer trip</h4>
+              <p>The travel time returned by the simulator is scaled by the delay factor of the rain, relative to dry weather:</p>
+              <div class="eq">\[ \tau_i = h_i\,\tau_i^{\mathrm{sim}}, \qquad h_i = \frac{1 + \alpha_h\,\peer{u_i}\big(\ba;\drv{\bomega(t)}\big)}{1 + \alpha_h\,\peer{u_i}(\ba;\mathbf 1)} \;\ge\; 1 \]</div>
+              <p>This is the Bureau of Public Roads volume–delay curve used throughout transport planning, in its linear form because URB operates well below capacity. The slope \(\alpha_h = 2.28\) is calibrated once on the stock benchmark (a mean excess delay of 0.50 at a mean busiest-link ratio of 0.219). A delay cannot be undone once the route is chosen, so the harm has no inverse. PACT instead biases the route choice toward routes predicted to be less delayed.</p>
+            </div>
+          </div>
+        </div>
+        <ul class="checks">
+          <li><span class="tag">σ = 0 · dry day</span><span>\(h_i = 1\) exactly. Verified on all 100 days of the cycle; the 50 dry days are unaffected at every \(\sigma\).</span></li>
+          <li><span class="tag">Lone vehicle</span><span>Every numerator is zero, so \(h_i = 1\). In SUMO a lone vehicle reads exactly zero peer load.</span></li>
+          <li><span class="tag">Frozen partners</span><span>The 133 human drivers follow fixed, selfish policies, and their load still turns into more or less delay as the rain comes and goes.</span></li>
+          <li><span class="tag">Monotone</span><span>\(h_i\) never decreases as \(\sigma\) grows.</span></li>
+        </ul>
+      </section>
+
+      <!-- ---------------- MAPDN ---------------- -->
+      <section id="mapdn" class="bench" aria-labelledby="mapdn-h">
+        <h3 id="mapdn-h" class="bench-name"><small>Power distribution</small>MAPDN · voltage control under the midday sun</h3>
+        <ul class="chips">
+          <li>Harm on reactive power, additive</li>
+          <li>Inverse: subtract</li>
+          <li class="anchor">σ = 1: IEEE 1547 default curve</li>
+        </ul>
+        <p>Photovoltaic inverters on a radial distribution feeder regulate voltage by injecting or absorbing reactive power \(q_i\) (Wang et al., 2021). We use the 141-bus, 12.5 kV feeder with 22 inverters. The goal is to keep every bus voltage within 0.95–1.05 per unit.</p>
+        <p>In the stock benchmark each inverter delivers exactly the reactive power it is told to. Deployed inverters also run an autonomous Volt/VAr curve in their firmware, as specified by IEEE 1547-2018, and grid codes such as California Rule 21 and AS/NZS 4777.2 require it to be active. The curve adds reactive power on top of the dispatched setpoint in response to the inverter's terminal voltage. That voltage is moved by the reactive power of every other inverter on the shared lines, so the curves respond to one another. On feeders with many inverters this interaction is a known cause of voltage oscillation (Jahangiri &amp; Aliprantis, 2013; Farivar et al., 2013; Andrén et al., 2015).</p>
+        <p>The sun sets how strong the interaction is. At night the voltage sits inside the curve's flat deadband and the firmware does nothing. Around midday, high solar output raises voltages onto the sloped part of the curve, and the same injections from the neighbours provoke stronger reactions.</p>
+
+        <div class="model">
+          <div class="mrow">
+            <div class="mtag">M<span>Medium</span></div>
+            <div class="mbody">
+              <h4>Feeder lines</h4>
+              <p>Agent \(i\)'s load is the voltage change that its peers' last injections cause at its terminal, split by conductor class \(m\) (heavy, medium and light lines, by resistance per kilometre):</p>
+              <div class="eq">\[ \peer{x_{m,i}(t)} = \sum_{j} S_m[i,j]\;\peer{q_j^{\ex}(t{-}1)} \]</div>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="mtag">W<span>Coupling</span></div>
+            <div class="mbody">
+              <h4>Voltage sensitivity of the shared lines</h4>
+              <div class="eq">\[ S_m[i,j] = \sum_{\substack{b\,\in\,\mathrm{path}(i)\,\cap\,\mathrm{path}(j)\\ \cls(b)=m}} \frac{X_b}{V_b^{2}}, \qquad S_m[i,i] = 0 \]</div>
+              <p>The linearised DistFlow sensitivity (Baran &amp; Wu, 1989): how strongly reactive power at \(j\) moves the voltage at \(i\) through the class-\(m\) lines on their common path to the substation. It is read from the network model before any training.</p>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="mtag d">D<span>Driver</span></div>
+            <div class="mbody">
+              <h4>A clear-sky solar day</h4>
+              <p>\(A(t) = \sin^2\) between 06:00 and 18:00 and exactly zero at night, on 3-minute steps (480 per day). The 241 steps with \(A = 0\) reproduce the stock task at every \(\sigma\).</p>
+              <div class="viz mini" id="drv-mapdn"><div class="viz-plot"></div><div class="viz-tip" aria-hidden="true"></div></div>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="mtag">H<span>Harm</span></div>
+            <div class="mbody">
+              <h4>An unrequested reaction</h4>
+              <p>Each inverter reacts to the voltage change its neighbours cause, with a Volt/VAr slope that the driver scales:</p>
+              <div class="eq">\[ d_i(t) = \bar s_i\,\clip\Big(-\drv{\sigma k A(t)} \sum_m \send_m\,\peer{x_{m,i}(t)},\ -q_{\mathrm{sat}},\ q_{\mathrm{sat}}\Big), \qquad q_i^{\ex} = \clip\big(q_i^{\sent} + d_i,\ -\bar q_i,\ \bar q_i\big) \]</div>
+              <dl class="terms">
+                <dt>\(\drv{k}\)</dt><dd>Reaction gain. \(\sigma = 1\) is the IEEE 1547-2018 Category B default slope (0.44 per-unit reactive power over 0.06 per-unit voltage); \(\sigma = 3\) is the steepest curve the standard allows, so the experiments stay within the standard.</dd>
+                <dt>\(\send_m\)</dt><dd>Class gains, unknown to the agents.</dd>
+                <dt>\(q_{\mathrm{sat}} = 0.44\)</dt><dd>The curve's own reactive-power limit, in units of rating.</dd>
+                <dt>\(\bar q_i\)</dt><dd>Capability \(\big(\bar s_i^2 - (p_i^{\mathrm{pv}})^2\big)^{1/2}\) at active power \(p_i^{\mathrm{pv}}\).</dd>
+              </dl>
+              <p>The reaction adds to the inverter's own action, so a correct estimate cancels it by subtraction. As in Example 2, reactions feed back through the lines: on this feeder \(k\rho(G) = 0.675\), so the midday threshold is \(\sigma_c = 1.48\) and the uncompensated fleet is past it at \(\sigma = 3\).</p>
+            </div>
+          </div>
+        </div>
+        <ul class="checks">
+          <li><span class="tag">Lone inverter</span><span>Reads exactly zero harm at \(\sigma \in \{0.5, 1, 3, 100\}\).</span></li>
+          <li><span class="tag">σ = 0 · night</span><span>Reproduces the stock task bit for bit at every driver value, and at every \(\sigma\) on the steps with \(A(t) = 0\).</span></li>
+          <li><span class="tag">Frozen partners</span><span>The harm still varies over the day.</span></li>
+          <li><span class="tag">Type (B) control</span><span>When the sun acts on each inverter directly, an isolated inverter feels it. The interaction-mediated harm it does not.</span></li>
+        </ul>
+      </section>
+
+      <!-- ---------------- VMAS ---------------- -->
+      <section id="vmas" class="bench" aria-labelledby="vmas-h">
+        <h3 id="vmas-h" class="bench-name"><small>Cooperative robotics</small>VMAS Balance · lifting from a shared supply</h3>
+        <ul class="chips">
+          <li>Harm on force, multiplicative</li>
+          <li>Inverse: divide</li>
+          <li class="anchor">σ = 1: stated calibration</li>
+        </ul>
+        <p>Four agents lift a beam carrying a package toward a goal (Bettini et al., 2022). If the beam tilts too far, the package falls, the episode ends and the team receives a penalty of −10. The difficulty is agreement: when one support pushes harder than the others, the beam rotates.</p>
+        <p>We add a shared supply, as in a synchronised hydraulic lift, where several jacks raise one load from a single power pack. When several jacks draw at once, the supply pressure sags and every jack delivers less force than it commanded. How much it sags for a given draw changes during operation: as the hydraulic fluid warms over a shift, its viscosity falls, internal leakage rises and the supply becomes softer. A jack alone on the supply receives full pressure at any temperature. In the benchmark this condition follows the same periodic profile as URB's wet/dry cycle.</p>
+
+        <div class="model">
+          <div class="mrow">
+            <div class="mtag">M<span>Medium</span></div>
+            <div class="mbody">
+              <h4>The supply</h4>
+              <p>Each agent's load on the supply is the magnitude of its executed force. The channels filter the peers' load over time, because pressure does not respond instantly:</p>
+              <div class="eq">\[ \peer{x_{m,i}(t)} = \zeta\,x_{m,i}(t{-}1) + (1-\zeta)\sum_{j\neq i:\ \cls(j)=m} W_{ij}\,\peer{\lVert a_j^{\ex}(t{-}1)\rVert}, \qquad \zeta = 0.9 \]</div>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="mtag">W<span>Coupling</span></div>
+            <div class="mbody">
+              <h4>Distance between actuators</h4>
+              <div class="eq">\[ W_{ij} = \frac{\recv_{\cls(i)}}{1 + \big(\lVert \mathrm{pos}_i - \mathrm{pos}_j\rVert/\lambda\big)^2}, \qquad W_{ii} = 0 \]</div>
+              <p>Actuators closer together couple more strongly. \(\recv_{\cls(i)} \in \{1.6,\ 1.0,\ 0.4\}\) is how much droop an actuator of hardware class \(\cls(i)\) feels, and \(\lambda = 0.35\) is the length scale. Both are public.</p>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="mtag d">D<span>Driver</span></div>
+            <div class="mbody">
+              <h4>A periodic softening of the supply</h4>
+              <p>A 100-step cycle with the shared shape: active over the first half, exactly zero over the second (51 of every 100 steps have \(A = 0\)). The clock keeps running across episodes.</p>
+              <div class="viz mini" id="drv-vmas"><div class="viz-plot"></div><div class="viz-tip" aria-hidden="true"></div></div>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="mtag">H<span>Harm</span></div>
+            <div class="mbody">
+              <h4>Lost force</h4>
+              <p>The droop scales the delivered force down:</p>
+              <div class="eq">\[ \delta_i(t) = \clip\Big(\frac{\drv{\sigma L A(t)}}{x_{\mathrm{ref}}}\sum_m \send_m\,\peer{x_{m,i}(t)},\ 0,\ \delta_{\max}\Big), \qquad a_i^{\ex} = \clip_{\mathrm{box}}\big((1-\delta_i)\,a_i^{\sent}\big) \]</div>
+              <dl class="terms">
+                <dt>\(\send_m\)</dt><dd>How much a class-\(m\) actuator's draw costs the others, \((0.2,\ 1.0,\ 1.8)\). Unknown to the agents.</dd>
+                <dt>\(x_{\mathrm{ref}}\)</dt><dd>A reference load that fixes the meaning of \(\sigma\).</dd>
+                <dt>\(\delta_{\max} = 0.9\)</dt><dd>The droop limit: a support never delivers less than 10% of its command.</dd>
+              </dl>
+              <p>\(\sigma = 1\) is a stated calibration: at the driver's peak, with every peer at full effort, the droop reaches 0.14, URB's heavy-rain value, so that severities are comparable across benchmarks. The droop grows with the peers' forces, so it penalises exactly the coordinated pushing the task rewards, and the support that droops most tips the beam first. Dividing the command by one minus the predicted droop restores the commanded force, the same kind of feed-forward a lift controller applies.</p>
+            </div>
+          </div>
+        </div>
+        <ul class="checks">
+          <li><span class="tag">Lone actuator</span><span>Exactly zero droop at any \(\sigma\).</span></li>
+          <li><span class="tag">σ = 0 · A = 0</span><span>Bit-identical to the stock scenario, and at every \(\sigma\) on the steps with \(A(t) = 0\).</span></li>
+          <li><span class="tag">Frozen partners</span><span>The droop still varies over the cycle, from 0 to 0.018 in the self-test.</span></li>
+        </ul>
+      </section>
+
+      <!-- ---------------- Ant ---------------- -->
+      <section id="ant" class="bench" aria-labelledby="ant-h">
+        <h3 id="ant-h" class="bench-name"><small>Locomotion</small>Multi-Agent MuJoCo Ant · four legs on one torso</h3>
+        <ul class="chips">
+          <li>Harm on joint torque, additive</li>
+          <li>Inverse: subtract</li>
+          <li class="anchor">σ = 1: stated calibration</li>
+        </ul>
+        <p>Multi-Agent MuJoCo splits the MuJoCo Ant into agents (Peng et al., 2021). In the 4×2 configuration, each of four agents is one leg and controls the torques of its hip and ankle, each in \([-1, 1]\). The reward is the stock Ant reward: forward progress, minus control and contact costs, plus a survival bonus.</p>
+        <p>All four legs are bolted to one torso. When one leg drives hard, the torso reacts, and part of that reaction reaches the other legs' joints as torque they did not command. This coupling is part of the robot's rigid-body dynamics and is already present in stock Ant. What we add is drift in how strongly it is transmitted, driven by the temperature of the drivetrain. A cold drivetrain is stiff and firmly preloaded, and it holds each joint against the reaction. As the gearboxes and bearings warm during a run, lubricant viscosity falls, preload drops and backlash opens, so more of a neighbour's push leaks through to a joint. No leg controls the temperature, and a leg alone on the torso, with the others slack, feels nothing from them at any temperature.</p>
+
+        <div class="model">
+          <div class="mrow">
+            <div class="mtag">M<span>Medium</span></div>
+            <div class="mbody">
+              <h4>The torso</h4>
+              <p>The elements of the medium are the eight joints, and each joint's load is the torque it actually delivered at the previous step, which the legs broadcast. Compliance and backlash spread a reaction over a few control steps, so the channels are filtered with memory \(\rho = 0.8\):</p>
+              <div class="eq">\[ \mathbf z_m(t) = \rho\,\mathbf z_m(t{-}1) + (1-\rho)\,G_m\,\peer{\boldsymbol\tau^{\ex}(t{-}1)} \in \R^{8} \]</div>
+              <div class="eq">\[ \mathbf e_i(t) = \frac{\mathbf z(t)\big|_i}{\big\lVert \mathbf z(t)\big|_i \big\rVert}, \quad \mathbf z = \textstyle\sum_m \mathbf z_m, \qquad \peer{x_{m,i}(t)} = \big\langle\, \mathbf z_m(t)\big|_i,\ \mathbf e_i(t) \,\big\rangle \]</div>
+              <p>Here \(\big|_i\) keeps agent \(i\)'s two joints. \(\mathbf e_i\) is the direction in the agent's two-joint action space along which the reaction arrives, and \(x_{m,i}\) is its size along load path \(m\).</p>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="mtag">W<span>Coupling</span></div>
+            <div class="mbody">
+              <h4>The robot's own inverse inertia</h4>
+              <p>The coupling operator is taken from the robot itself. \(\kappa\) is the joint-space inverse inertia \(|M^{-1}|\) of the Ant at its nominal pose, read out of the MuJoCo model: entry \(\kappa_{pq}\) says how strongly a unit torque at joint \(q\) accelerates joint \(p\).</p>
+              <div class="eq">\[ G_m[p,q] = \ind{\cls(p,q)=m}\;\recv_p\;\kappa_{pq}\;\ind{\mathrm{leg}(p)\neq\mathrm{leg}(q)}, \qquad \kappa = \big|M^{-1}\big|_{\text{nominal pose}} \]</div>
+              <p>The index \(m\) runs over three load paths: hip ← hip, ankle ← ankle and hip ↔ ankle. \(\recv_p\) is a declared per-actuator susceptibility with mean 1 and spread 0.35, standing for build tolerance and wear. The last factor removes pairs of joints on the same leg, so an agent never disturbs itself.</p>
+              <div class="tbl tbl-small">
+                <table>
+                  <thead><tr><th scope="col">Load path</th><th scope="col">Entry of \(|M^{-1}|\)</th></tr></thead>
+                  <tbody>
+                    <tr><td>Hip ← hip, adjacent legs</td><td class="num">4.382</td></tr>
+                    <tr><td>Hip ← hip, diagonal legs</td><td class="num">2.823</td></tr>
+                    <tr><td>Ankle ← ankle, diagonal legs</td><td class="num">1.795</td></tr>
+                    <tr><td>Ankle ← ankle, adjacent legs</td><td class="num">0.309</td></tr>
+                    <tr><td>Hip ↔ ankle, any two joints</td><td class="num">0.000</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>The structure is not what a distance rule would suggest. Diagonal ankles have parallel axes and couple about six times more strongly than adjacent ones. At the nominal pose no hip torque accelerates any ankle, because hip axes are vertical and ankle axes horizontal. The hip ↔ ankle path is therefore exactly zero and is dropped, which leaves two live channels.</p>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="mtag d">D<span>Driver</span></div>
+            <div class="mbody">
+              <h4>Drivetrain temperature</h4>
+              <p>A 20,000-step cycle: a \(\sin^2\) bump over the warm half and exactly zero over the cold half. At the simulator's 0.05 s control step, one cycle lasts about 17 minutes, the time scale over which a drivetrain warms. The clock keeps running across episodes. \(A(t)\) changes by at most \(3.1\times10^{-4}\) per step, so it is slow compared with control, yet not constant within a 1000-step episode.</p>
+              <div class="viz mini" id="drv-ant"><div class="viz-plot"></div><div class="viz-tip" aria-hidden="true"></div></div>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="mtag">H<span>Harm</span></div>
+            <div class="mbody">
+              <h4>Unrequested joint torque</h4>
+              <p>The reaction is added to the torque the leg sends, along the direction \(\mathbf e_i\):</p>
+              <div class="eq">\[ \mathbf d_i(t) = \frac{\drv{\sigma L A(t)}}{x_{\mathrm{ref}}}\Big(\sum_m \send_m\,\peer{x_{m,i}(t)}\Big)\,\mathbf e_i(t), \qquad \ba_i^{\ex}(t) = \clip\big(\ba_i^{\sent}(t) + \mathbf d_i(t),\ -1,\ 1\big) \]</div>
+              <dl class="terms">
+                <dt>\(\drv{L} = 0.14\)</dt><dd>The severity scale shared with the other benchmarks.</dd>
+                <dt>\(\send_m\)</dt><dd>\((1.5,\ 0.9,\ 0.6)\) for hip ← hip, ankle ← ankle and hip ↔ ankle. Hips attach directly to the torso and load each other hardest. Unknown to the agents.</dd>
+                <dt>\(x_{\mathrm{ref}} = 7.73\)</dt><dd>The value of \(\sum_m \send_m x_{m,i}\) when every peer applies full torque with random signs.</dd>
+              </dl>
+              <p>\(\sigma = 1\) is a stated calibration: at the driver's peak, with every peer at full torque, the disturbance reaching an agent is 0.14 of its torque range (measured: 0.1397). No published constant exists for drivetrain warm-up, so we reuse URB's heavy-rain value to keep severities comparable across benchmarks.</p>
+              <p>The disturbance is applied where the simulator executes the torques, below the reward. The control cost is charged on the torque the policy commanded, so the reward function is the stock one, and the ant earns less only because it walks worse. The disturbance is a torque in the agent's own action space, so a correct estimate is subtracted from the command and the delivered torque then equals the commanded one exactly. The agent measures its shortfall as \(y_i = \langle \ba_i^{\ex} - \ba_i^{\sent},\, \mathbf e_i\rangle\), which a servo reads through its motor current.</p>
+            </div>
+          </div>
+        </div>
+        <ul class="checks">
+          <li><span class="tag">σ = 0 · cold half</span><span>Stock Ant, byte for byte, and at every \(\sigma\) whenever \(A(t) = 0\).</span></li>
+          <li><span class="tag">Lone agent</span><span>When one agent owns all eight joints, every channel is exactly zero and the disturbance is zero at \(\sigma = 3\).</span></li>
+          <li><span class="tag">Frozen partners</span><span>The disturbance still follows the warm and cold halves of the cycle.</span></li>
+          <li><span class="tag">Feedback</span><span>The channels are built from delivered torques, which include the disturbance, so the disturbance feeds into its own next value, as on the feeder.</span></li>
+        </ul>
+      </section>
+    </section>
+
+    <!-- ================================================================ -->
+    <section id="refs" class="part" aria-labelledby="refs-h">
+      <p class="kicker">Sources</p>
+      <h2 id="refs-h">References</h2>
+      <ol class="refs">
+        <li>Agarwal, M., Maze, T. H., and Souleyrette, R. (2005). Impacts of weather on urban freeway traffic flow characteristics and facility capacity. <i>Proceedings of the Mid-Continent Transportation Research Symposium</i>.</li>
+        <li>Akman, A. O., Psarou, A., Hoffmann, M., Gorczyca, Ł., Kowalski, Ł., Gora, P., Jamróz, G., and Kucharski, R. (2025). URB: Urban Routing Benchmark for RL-equipped connected autonomous vehicles. <i>NeurIPS Datasets and Benchmarks Track</i>.</li>
+        <li>Andrén, F., Bletterie, B., Kadam, S., Kotsampopoulos, P., and Bucher, C. (2015). On the stability of local voltage control in distribution networks with a high penetration of inverter-based generation. <i>IEEE Transactions on Industrial Electronics</i>, 62(4), 2519–2529.</li>
+        <li>Baran, M. E., and Wu, F. F. (1989). Network reconfiguration in distribution systems for loss reduction and load balancing. <i>IEEE Transactions on Power Delivery</i>, 4(2), 1401–1407.</li>
+        <li>Bettini, M., Kortvelesy, R., Blumenkamp, J., and Prorok, A. (2022). VMAS: A vectorized multi-agent simulator for collective robot learning. <i>Distributed Autonomous Robotic Systems</i>.</li>
+        <li>Bureau of Public Roads (1964). <i>Traffic Assignment Manual</i>. U.S. Department of Commerce.</li>
+        <li>Farivar, M., Chen, L., and Low, S. (2013). Equilibrium and dynamics of local voltage control in distribution systems. <i>IEEE Conference on Decision and Control</i>.</li>
+        <li>IEEE (2018). IEEE 1547-2018: Standard for interconnection and interoperability of distributed energy resources with associated electric power systems interfaces.</li>
+        <li>Jahangiri, P., and Aliprantis, D. C. (2013). Distributed Volt/VAr control by PV inverters. <i>IEEE Transactions on Power Systems</i>, 28(3), 3429–3439.</li>
+        <li>Lopez, P. A., et al. (2018). Microscopic traffic simulation using SUMO. <i>IEEE International Conference on Intelligent Transportation Systems</i>, 2575–2582.</li>
+        <li>Peng, B., Rashid, T., Schroeder de Witt, C., Kamienny, P.-A., Torr, P., Böhmer, W., and Whiteson, S. (2021). FACMAC: Factored multi-agent centralised policy gradients. <i>NeurIPS</i>.</li>
+        <li>Smith, B. L., Byrne, K. G., Copperman, R. B., Hennessy, S. M., and Goodall, N. J. (2004). An investigation into the impact of rainfall on freeway traffic flow. <i>83rd Annual Meeting of the Transportation Research Board</i>.</li>
+        <li>Transportation Research Board (2016). <i>Highway Capacity Manual, Sixth Edition: A Guide for Multimodal Mobility Analysis</i>. The National Academies Press.</li>
+        <li>Wang, J., Xu, W., Gu, Y., Song, W., and Green, T. C. (2021). Multi-agent reinforcement learning for active voltage control on power distribution networks. <i>NeurIPS</i>.</li>
+      </ol>
+    </section>
+
+    <footer class="foot">
+      Companion page for an anonymous ICLR 2027 submission. Code will be released upon acceptance.
+    </footer>
+  </main>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- drivers and helpers ---------- */
+  var NS = 'http://www.w3.org/2000/svg';
+  function sin2(x) { var s = Math.sin(x); return s * s; }
+  function mod(a, n) { return ((a % n) + n) % n; }
+  function linspace(a, b, n) { var out = []; for (var k = 0; k <= n; k++) out.push(a + (b - a) * k / n); return out; }
+  var DRIVER = {
+    rain: function (d) { var p = mod(d, 100); return p < 50 ? sin2(Math.PI * p / 50) : 0; },
+    sun: function (h) { var p = mod(h, 24); return (p >= 6 && p < 18) ? sin2(Math.PI * (p - 6) / 12) : 0; },
+    c100: function (t) { var p = mod(t, 100); return p < 50 ? sin2(Math.PI * p / 50) : 0; },
+    c20k: function (t) { var p = mod(t, 20000); return p < 10000 ? sin2(Math.PI * p / 10000) : 0; }
+  };
+  function hhmm(h) {
+    var m = Math.round(h * 60), hh = Math.floor(m / 60), mm = m % 60;
+    return (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
+  }
+  function svgEl(tag, attrs, parent) {
+    var n = document.createElementNS(NS, tag);
+    for (var k in attrs) if (Object.prototype.hasOwnProperty.call(attrs, k)) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  }
+  function txt(parent, attrs, s) { var t = svgEl('text', attrs, parent); t.textContent = s; return t; }
+
+  /* ---------- a small line chart with stacked panels and a crosshair ---------- */
+  function Chart(host, spec) {
+    var self = this;
+    this.host = host;
+    this.plot = host.querySelector('.viz-plot');
+    this.tip = host.querySelector('.viz-tip');
+    this.spec = spec;
+    this.idx = null;
+    this.on = false;
+    this.w = 0;
+    this.plot.tabIndex = 0;
+    this.plot.setAttribute('role', 'img');
+    if (spec.aria) this.plot.setAttribute('aria-label', spec.aria);
+    var measure = function () {
+      var w = Math.round(self.plot.getBoundingClientRect().width);
+      if (w > 0 && w !== self.w) { self.w = w; self.render(); }
+    };
+    if ('ResizeObserver' in window) new ResizeObserver(measure).observe(this.plot);
+    else window.addEventListener('resize', measure);
+    measure();
+    this.plot.addEventListener('pointermove', function (e) { self.pointer(e); });
+    this.plot.addEventListener('pointerdown', function (e) { self.pointer(e); });
+    this.plot.addEventListener('pointerleave', function () { self.hide(); });
+    this.plot.addEventListener('focus', function () { self.show(self.idx != null ? self.idx : Math.round((self.spec.xs.length - 1) / 4)); });
+    this.plot.addEventListener('blur', function () { self.hide(); });
+    this.plot.addEventListener('keydown', function (e) { self.key(e); });
+  }
+  Chart.prototype.set = function (spec) {
+    this.spec = spec;
+    if (spec.aria) this.plot.setAttribute('aria-label', spec.aria);
+    if (this.w) this.render();
+  };
+  Chart.prototype.render = function () {
+    var s = this.spec, W = this.w;
+    var m = { l: 46, r: 22, t: 2, b: s.xLabel ? 44 : 26 };
+    var TH = s.panels.some(function (p) { return p.title; }) ? 20 : 8, GAP = 12;
+    var y = m.t;
+    var P = s.panels.map(function (p) {
+      var o = { src: p, ttl: y, top: y + TH };
+      o.bot = o.top + p.height;
+      y = o.bot + GAP;
+      return o;
+    });
+    var last = P[P.length - 1];
+    var H = last.bot + m.b;
+    var x0 = s.xDomain[0], x1 = s.xDomain[1];
+    var iw = W - m.l - m.r;
+    var sx = function (x) { return m.l + (x - x0) / (x1 - x0) * iw; };
+    this.m = m; this.P = P; this.sx = sx;
+
+    var svg = svgEl('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, 'aria-hidden': 'true' });
+    var self = this;
+    P.forEach(function (o) {
+      var p = o.src, y0 = p.yDomain[0], y1 = p.yDomain[1];
+      o.sy = function (v) { return o.bot - (Math.max(y0, Math.min(y1, v)) - y0) / (y1 - y0) * (o.bot - o.top); };
+      if (p.title) txt(svg, { x: m.l, y: o.ttl + 13, 'class': 'ptitle' }, p.title);
+      p.yTicks.forEach(function (tv) {
+        var yy = Math.round(o.sy(tv)) + 0.5;
+        svgEl('line', { x1: m.l, x2: W - m.r, y1: yy, y2: yy, 'class': tv === y0 ? 'axis' : 'grid' }, svg);
+        txt(svg, { x: m.l - 8, y: yy + 4, 'text-anchor': 'end' }, p.yFormat ? p.yFormat(tv) : String(tv));
+      });
+      if (p.yTicks.indexOf(y0) < 0) {
+        var yb = Math.round(o.sy(y0)) + 0.5;
+        svgEl('line', { x1: m.l, x2: W - m.r, y1: yb, y2: yb, 'class': 'axis' }, svg);
+      }
+      (p.refs || []).forEach(function (r) {
+        var yr = Math.round(o.sy(r.y)) + 0.5;
+        svgEl('line', { x1: m.l, x2: W - m.r, y1: yr, y2: yr, 'class': 'ref' }, svg);
+        if (r.label) txt(svg, { x: W - m.r, y: yr - 6, 'text-anchor': 'end', 'class': 'reflab' }, r.label);
+      });
+      (p.notes || []).forEach(function (n) {
+        txt(svg, { x: sx(n.x), y: o.sy(n.y), 'text-anchor': n.anchor || 'middle', 'class': 'note' }, n.text);
+      });
+      p.series.forEach(function (se) {
+        var d = '';
+        for (var i = 0; i < s.xs.length; i++) d += (i ? 'L' : 'M') + sx(s.xs[i]).toFixed(1) + ',' + o.sy(se.ys[i]).toFixed(1);
+        if (se.area) {
+          var base = o.sy(y0).toFixed(1);
+          svgEl('path', { d: d + 'L' + sx(s.xs[s.xs.length - 1]).toFixed(1) + ',' + base + 'L' + sx(s.xs[0]).toFixed(1) + ',' + base + 'Z', style: 'fill:' + se.color + ';opacity:.14;stroke:none' }, svg);
+        }
+        svgEl('path', { d: d, style: 'fill:none;stroke:' + se.color + ';stroke-width:' + (se.width || 2) + ';stroke-linejoin:round;stroke-linecap:round' }, svg);
+      });
+      (p.marks || []).forEach(function (mk) {
+        var cx = sx(mk.x), cy = o.sy(mk.y);
+        svgEl('circle', { cx: cx, cy: cy, r: 4, 'class': 'dot', style: 'fill:' + mk.color }, svg);
+        txt(svg, { x: cx, y: cy - 10, 'text-anchor': 'middle', 'class': 'mlab' }, mk.text);
+      });
+    });
+    s.xTicks.forEach(function (tv) {
+      txt(svg, { x: sx(tv), y: last.bot + 17, 'text-anchor': 'middle' }, s.xFormat ? s.xFormat(tv) : String(tv));
+    });
+    if (s.xLabel) txt(svg, { x: m.l + iw / 2, y: last.bot + 37, 'text-anchor': 'middle', 'class': 'xlab' }, s.xLabel);
+
+    this.cross = svgEl('g', { style: 'display:none' }, svg);
+    this.crossLine = svgEl('line', { y1: P[0].top, y2: last.bot, 'class': 'cross' }, this.cross);
+    this.dots = [];
+    P.forEach(function (o) {
+      o.src.series.forEach(function (se) {
+        self.dots.push({ c: svgEl('circle', { r: 4, 'class': 'dot', style: 'fill:' + se.color }, self.cross), o: o, se: se });
+      });
+    });
+    this.plot.replaceChildren(svg);
+    this.svg = svg;
+    if (this.on && this.idx != null) this.show(this.idx);
+  };
+  Chart.prototype.show = function (i) {
+    if (!this.svg) return;
+    var s = this.spec, n = s.xs.length - 1;
+    i = Math.max(0, Math.min(n, i));
+    this.idx = i; this.on = true;
+    var x = this.sx(s.xs[i]);
+    this.cross.style.display = '';
+    this.crossLine.setAttribute('x1', x); this.crossLine.setAttribute('x2', x);
+    this.dots.forEach(function (d) { d.c.setAttribute('cx', x); d.c.setAttribute('cy', d.o.sy(d.se.ys[i])); });
+    var info = s.tip(i), tip = this.tip;
+    tip.replaceChildren();
+    var tt = document.createElement('div'); tt.className = 'tt'; tt.textContent = info.title; tip.appendChild(tt);
+    info.rows.forEach(function (r) {
+      var row = document.createElement('div'); row.className = 'row';
+      var k = document.createElement('i'); k.style.borderColor = r.color;
+      var b = document.createElement('b'); b.textContent = r.value;
+      var sp = document.createElement('span'); sp.textContent = r.label;
+      row.appendChild(k); row.appendChild(b); row.appendChild(sp);
+      tip.appendChild(row);
+    });
+    tip.classList.add('on');
+    var tw = tip.offsetWidth, pw = this.plot.clientWidth;
+    var left = x + 14;
+    if (left + tw > pw) left = x - 14 - tw;
+    if (left < 0) left = 0;
+    tip.style.left = left + 'px';
+    tip.style.top = (this.plot.offsetTop + this.P[0].top) + 'px';
+  };
+  Chart.prototype.hide = function () {
+    this.on = false;
+    if (this.cross) this.cross.style.display = 'none';
+    this.tip.classList.remove('on');
+  };
+  Chart.prototype.pointer = function (e) {
+    var r = this.plot.getBoundingClientRect(), s = this.spec, n = s.xs.length - 1;
+    var iw = this.w - this.m.l - this.m.r;
+    var f = (e.clientX - r.left - this.m.l) / iw;
+    this.show(Math.round(f * n));
+  };
+  Chart.prototype.key = function (e) {
+    var n = this.spec.xs.length - 1, step = Math.max(1, Math.round(n / 50));
+    var i = this.idx != null ? this.idx : 0;
+    if (e.key === 'ArrowRight') i += step;
+    else if (e.key === 'ArrowLeft') i -= step;
+    else if (e.key === 'Home') i = 0;
+    else if (e.key === 'End') i = n;
+    else if (e.key === 'Escape') { this.hide(); return; }
+    else return;
+    e.preventDefault();
+    this.show(i);
+  };
+
+  function fillTable(tbody, rows) {
+    tbody.replaceChildren();
+    rows.forEach(function (cells) {
+      var tr = document.createElement('tr');
+      cells.forEach(function (c) { var td = document.createElement('td'); td.textContent = c; tr.appendChild(td); });
+      tbody.appendChild(tr);
+    });
+  }
+  function bindPresets(input, onChange) {
+    var buttons = [].slice.call(document.querySelectorAll('.presets button[data-target="' + input.id + '"]'));
+    function sync() {
+      buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(Math.abs(+b.dataset.value - +input.value) < 1e-9)); });
+    }
+    buttons.forEach(function (b) {
+      b.addEventListener('click', function () { input.value = b.dataset.value; onChange(); sync(); });
+    });
+    input.addEventListener('input', function () { onChange(); sync(); });
+    sync();
+  }
+
+  /* ---------- Figure 2: cars in the rain ---------- */
+  (function () {
+    var fig = document.getElementById('fig-road');
+    if (!fig) return;
+    var ALPHA = 2.28, L = 0.14;
+    var sig = document.getElementById('road-sigma'), load = document.getElementById('road-load');
+    var xs = linspace(0, 100, 400);
+    var A = xs.map(DRIVER.rain);
+    var lone = xs.map(function () { return 1; });
+    function h(a, s, u0) { var w = Math.max(1 - s * L * a, 1e-3); return (1 + ALPHA * u0 / w) / (1 + ALPHA * u0); }
+    function build() {
+      var s = +sig.value, u0 = +load.value;
+      var share = A.map(function (a) { return h(a, s, u0); });
+      var peak = 1, peakDay = 25, sum = 0;
+      for (var d = 0; d < 100; d++) { var v = h(DRIVER.rain(d), s, u0); sum += v; if (v > peak + 1e-12) { peak = v; peakDay = d; } }
+      var avg = sum / 100;
+      document.getElementById('road-sigma-out').textContent = s.toFixed(2);
+      document.getElementById('road-load-out').textContent = u0.toFixed(2);
+      document.getElementById('road-peak').textContent = peak.toFixed(3);
+      document.getElementById('road-peak-s').textContent = peak > 1.0005 ? '+' + ((peak - 1) * 100).toFixed(1) + '% on day ' + peakDay : 'no extra delay';
+      document.getElementById('road-avg').textContent = avg.toFixed(3);
+      document.getElementById('road-avg-s').textContent = '+' + ((avg - 1) * 100).toFixed(1) + '%, dry days included';
+      var rows = [];
+      for (var k = 0; k <= 100; k += 5) rows.push([String(k), DRIVER.rain(k).toFixed(3), '1.000', h(DRIVER.rain(k), s, u0).toFixed(3)]);
+      fillTable(document.querySelector('#road-table tbody'), rows);
+      return {
+        xs: xs, xDomain: [0, 100], xTicks: [0, 25, 50, 75, 100], xLabel: 'Day of the 100-day wet/dry cycle',
+        aria: 'Delay factor over one wet/dry cycle at severity ' + s.toFixed(2) + ' and load ' + u0.toFixed(2) + '. Sharing the road peaks at ' + peak.toFixed(3) + '; alone on the road it stays at 1.000.',
+        panels: [
+          { title: 'Rain intensity A(t)', height: 44, yDomain: [0, 1], yTicks: [0, 1], yFormat: function (v) { return v.toFixed(0); },
+            series: [{ ys: A, color: 'var(--c-drv)', area: true, width: 1.5 }],
+            notes: [{ x: 75, y: 0.3, text: 'dry days: A = 0' }] },
+          { title: 'Delay factor relative to dry weather', height: 210, yDomain: [0.98, 1.36], yTicks: [1, 1.1, 1.2, 1.3], yFormat: function (v) { return v.toFixed(2); },
+            series: [{ ys: share, color: 'var(--c-peer)', width: 2 }, { ys: lone, color: 'var(--c-lone)', width: 1.5 }],
+            marks: peak > 1.0005 ? [{ x: peakDay, y: peak, color: 'var(--c-peer)', text: '+' + ((peak - 1) * 100).toFixed(1) + '%' }] : [] }
+        ],
+        tip: function (i) {
+          return { title: 'Day ' + xs[i].toFixed(1) + ' · A = ' + A[i].toFixed(2), rows: [
+            { color: 'var(--c-peer)', value: share[i].toFixed(3), label: 'sharing the road' },
+            { color: 'var(--c-lone)', value: '1.000', label: 'alone' }
+          ] };
+        }
+      };
+    }
+    var chart = new Chart(fig.querySelector('.viz'), build());
+    var update = function () { chart.set(build()); };
+    bindPresets(sig, update);
+    load.addEventListener('input', update);
+  })();
+
+  /* ---------- Figure 3: inverters at noon ---------- */
+  (function () {
+    var fig = document.getElementById('fig-feeder');
+    if (!fig) return;
+    var sig = document.getElementById('feeder-sigma');
+    var FEEDERS = [
+      { n: 6, kr: 0.378, color: 'var(--c-ord1)' },
+      { n: 22, kr: 0.675, color: 'var(--c-ord2)' },
+      { n: 38, kr: 1.186, color: 'var(--c-ord3)' }
+    ];
+    var xs = linspace(0, 24, 480);
+    var A = xs.map(DRIVER.sun);
+    function window_(g) {
+      if (g <= 1) return 'never';
+      var half = (12 / Math.PI) * Math.asin(Math.sqrt(1 / g));
+      var a = 6 + half, b = 18 - half;
+      return hhmm(a) + '–' + hhmm(b) + ' (' + (b - a).toFixed(1) + ' h)';
+    }
+    function build() {
+      var s = +sig.value;
+      document.getElementById('feeder-sigma-out').textContent = s.toFixed(2);
+      var series = FEEDERS.map(function (f) { return { ys: A.map(function (a) { return s * f.kr * a; }), color: f.color, width: 2, f: f }; });
+      var tb = document.getElementById('feeder-rows');
+      tb.replaceChildren();
+      FEEDERS.forEach(function (f) {
+        var tr = document.createElement('tr');
+        var th = document.createElement('th'); th.scope = 'row'; th.textContent = f.n + ' inverters' + (f.n === 22 ? ' (main)' : '');
+        tr.appendChild(th);
+        [f.kr.toFixed(3), (s * f.kr).toFixed(2), window_(s * f.kr), (1 / f.kr).toFixed(2)].forEach(function (c) {
+          var td = document.createElement('td'); td.className = 'num'; td.textContent = c; tr.appendChild(td);
+        });
+        tb.appendChild(tr);
+      });
+      var rows = [];
+      for (var hr = 0; hr <= 24; hr++) {
+        var a = DRIVER.sun(hr);
+        rows.push([hhmm(hr), a.toFixed(3)].concat(FEEDERS.map(function (f) { return (s * f.kr * a).toFixed(3); })));
+      }
+      fillTable(document.querySelector('#feeder-table tbody'), rows);
+      return {
+        xs: xs, xDomain: [0, 24], xTicks: [0, 6, 12, 18, 24], xFormat: hhmm, xLabel: 'Time of day',
+        aria: 'Loop gain over one day at severity ' + s.toFixed(2) + '. At noon it reaches ' + FEEDERS.map(function (f) { return (s * f.kr).toFixed(2) + ' for ' + f.n + ' inverters'; }).join(', ') + '. Values above 1 mean the reactions grow.',
+        panels: [
+          { title: 'Solar profile A(t)', height: 44, yDomain: [0, 1], yTicks: [0, 1], yFormat: function (v) { return v.toFixed(0); },
+            series: [{ ys: A, color: 'var(--c-drv)', area: true, width: 1.5 }],
+            notes: [{ x: 3, y: 0.3, text: 'night' }, { x: 21, y: 0.3, text: 'night' }] },
+          { title: 'Loop gain Θ(t) = σ k A(t) ρ(G)', height: 210, yDomain: [0, 3.6], yTicks: [0, 1, 2, 3], yFormat: function (v) { return v.toFixed(0); },
+            refs: [{ y: 1, label: 'Θ = 1 · above this line reactions grow' }],
+            series: series }
+        ],
+        tip: function (i) {
+          return { title: hhmm(xs[i]) + ' · A = ' + A[i].toFixed(2), rows: series.slice().reverse().map(function (se) {
+            return { color: se.color, value: se.ys[i].toFixed(2), label: se.f.n + ' inverters' };
+          }) };
+        }
+      };
+    }
+    var chart = new Chart(fig.querySelector('.viz'), build());
+    bindPresets(sig, function () { chart.set(build()); });
+  })();
+
+  /* ---------- driver panels in Section 2 ---------- */
+  (function () {
+    var MINIS = [
+      { id: 'drv-urb', x: [0, 100], n: 400, f: DRIVER.rain, ticks: [0, 25, 50, 75, 100], label: 'Day of the cycle',
+        tip: function (x) { return 'Day ' + x.toFixed(1); }, notes: [{ x: 75, y: 0.25, text: 'dry days · A = 0' }] },
+      { id: 'drv-mapdn', x: [0, 24], n: 480, f: DRIVER.sun, ticks: [0, 6, 12, 18, 24], fmt: hhmm, label: 'Time of day',
+        tip: function (x) { return hhmm(x); }, notes: [{ x: 3, y: 0.25, text: 'night' }, { x: 21, y: 0.25, text: 'night' }] },
+      { id: 'drv-vmas', x: [0, 100], n: 400, f: DRIVER.c100, ticks: [0, 25, 50, 75, 100], label: 'Step of the cycle',
+        tip: function (x) { return 'Step ' + Math.round(x); }, notes: [{ x: 75, y: 0.25, text: 'A = 0' }] },
+      { id: 'drv-ant', x: [0, 20000], n: 400, f: DRIVER.c20k, ticks: [0, 5000, 10000, 15000, 20000],
+        fmt: function (v) { return v === 0 ? '0' : (v / 1000) + 'k'; }, label: 'Step of the cycle (0.05 s per step)',
+        tip: function (x) { return 'Step ' + Math.round(x).toLocaleString('en-US') + ' · ' + (x * 0.05 / 60).toFixed(1) + ' min'; },
+        notes: [{ x: 15000, y: 0.25, text: 'cold half · A = 0' }] }
+    ];
+    MINIS.forEach(function (c) {
+      var host = document.getElementById(c.id);
+      if (!host) return;
+      var xs = linspace(c.x[0], c.x[1], c.n), A = xs.map(c.f);
+      new Chart(host, {
+        xs: xs, xDomain: c.x, xTicks: c.ticks, xFormat: c.fmt, xLabel: c.label,
+        aria: 'Driver A(t) over one cycle: a smooth bump over the first half, exactly zero over the second half.',
+        panels: [{ title: 'Driver A(t)', height: 92, yDomain: [0, 1], yTicks: [0, 0.5, 1], yFormat: function (v) { return v === 0.5 ? '0.5' : v.toFixed(0); },
+          series: [{ ys: A, color: 'var(--c-drv)', area: true, width: 2 }], notes: c.notes }],
+        tip: function (i) { return { title: c.tip(xs[i]), rows: [{ color: 'var(--c-drv)', value: A[i].toFixed(3), label: 'A(t)' }] }; }
+      });
+    });
+  })();
+
+  /* ---------- table of contents: highlight the section in view ---------- */
+  (function () {
+    var links = [].slice.call(document.querySelectorAll('.toc a'));
+    if (!links.length || !('IntersectionObserver' in window)) return;
+    var ids = links.map(function (a) { return a.getAttribute('href').slice(1); });
+    var visible = {};
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { visible[e.target.id] = e.isIntersecting; });
+      var current = null;
+      ids.forEach(function (id) { if (visible[id]) current = id; });
+      if (!current) return;
+      links.forEach(function (a) {
+        var on = a.getAttribute('href') === '#' + current;
+        a.classList.toggle('is-active', on);
+        if (on) a.setAttribute('aria-current', 'location'); else a.removeAttribute('aria-current');
+      });
+    }, { rootMargin: '-18% 0px -72% 0px' });
+    ids.forEach(function (id) { var t = document.getElementById(id); if (t) obs.observe(t); });
+  })();
+})();
+</script>
 </body>
 </html>

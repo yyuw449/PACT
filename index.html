@@ -359,6 +359,29 @@
   .img-frame img { display: block; width: 100%; height: auto; }
   .qa-answer { font-size: 1.12rem; font-weight: 600; color: var(--ink); }
 
+  /* section 4: experiments */
+  .tbl-hosts table { min-width: 720px; font-size: 0.9rem; }
+  .tbl-hosts tbody th { width: 9rem; }
+  .tbl-hosts a { font-family: var(--f-mono); font-size: 0.8rem; }
+  h4.bl-group { margin: 2rem 0 0.35rem; font-size: 1.08rem; }
+  .bl-list { margin: 0 0 0.6rem; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+  .bl-list > li { display: grid; grid-template-columns: 12.5rem minmax(0, 1fr); gap: 0.5rem 1.4rem; padding: 1.05rem 0; border-bottom: 1px solid var(--rule); }
+  .bl-head p { margin: 0; }
+  .bl-name { font-family: var(--f-display); font-weight: 700; font-size: 1.04rem; line-height: 1.3; color: var(--ink); }
+  .bl-alias { display: block; margin-top: 0.15rem; font-weight: 400; font-size: 0.84rem; color: var(--muted); }
+  .bl-meta { margin-top: 0.4rem !important; font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.02em; color: var(--muted); }
+  .bl-on { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.5rem 0 0; padding: 0; list-style: none; }
+  .bl-on li { padding: 0.08rem 0.45rem; border-radius: 5px; background: var(--surface-2); font-family: var(--f-display); font-size: 0.72rem; font-weight: 600; color: var(--ink-2); }
+  .bl-body { min-width: 0; }
+  .bl-body > p { margin: 0; max-width: 64ch; }
+  .bl-links { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.15rem 0.8rem; margin: 0 0 0.55rem; font-family: var(--f-mono); font-size: 0.78rem; }
+  .bl-links dt { color: var(--muted); }
+  .bl-links dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .bl-links a { color: var(--ink-2); }
+  .bl-links a:hover { color: var(--peer-ink); }
+  .bl-links .nolink { color: var(--muted); }
+  @media (max-width: 640px) { .bl-list > li { grid-template-columns: minmax(0, 1fr); gap: 0.4rem; } }
+
   /* references + footer */
   .refs { margin: 1rem 0 0; padding-left: 1.2rem; font-size: 0.92rem; color: var(--ink-2); }
   .refs li { margin-bottom: 0.5rem; max-width: 72ch; }
@@ -385,6 +408,7 @@
       <a href="#problem"><b>1</b>The problem</a>
       <a href="#benchmarks"><b>2</b>The four benchmarks</a>
       <a href="#fit"><b>3</b>Design questions</a>
+      <a href="#experiments"><b>4</b>Experiments</a>
     </nav>
   </div>
 </header>
@@ -411,6 +435,9 @@
       <li><a class="sub" href="#fit-info">Is using W fair?</a></li>
       <li><a class="sub" href="#fit-evidence">What remains hard</a></li>
       <li><a class="sub" href="#fit-reading">How realistic each harm is</a></li>
+      <li><a href="#experiments">4 · Experiments</a></li>
+      <li><a class="sub" href="#exp-setup">Setup and hosts</a></li>
+      <li><a class="sub" href="#exp-baselines">Baselines</a></li>
       <li><a href="#refs">References</a></li>
     </ol>
   </nav>
@@ -1033,7 +1060,7 @@
           <figcaption><b>Figure 4.</b> Evaluation return on VMAS Balance over training, at the paper's severity \(\sigma = 3\) (a, b) and at \(\sigma = 1\) (c, d). Each severity is split into two sets of baselines for legibility; RLS is URLS, PACT's estimator run on the peers' raw actions. Oracle-A(t) is the MAPPO host told the true driver at every step. At \(\sigma = 3\), averaged over the second half of training, PACT reaches about 47, the host about 35 and the unharmed B0 56, while Oracle-A(t) stays at the host's level: knowing today's condition does not tell an agent what its neighbours' pushing will cost it. At \(\sigma = 1\) the harm is milder, PACT stays close to B0, and ESO and RLS, which use the same shortfall, come close to PACT in the second set.</figcaption>
         </figure>
 
-        <p>Having the right model and the right inputs is still not the same as solving the task. The table lists what several baselines are given and how they perform at \(\sigma = 3\), with values as reported in Section 5 of the paper.</p>
+        <p>Having the right model and the right inputs is still not the same as solving the task. The table lists what several baselines are given and how they perform at \(\sigma = 3\), with values as reported in Section 5 of the paper; Section 4 below describes each baseline.</p>
         <div class="tbl tbl-evidence">
           <table>
             <thead>
@@ -1104,6 +1131,221 @@
         <p>On MAPDN the agent's action plays the role of the curve's reference voltage. On the sloped part of an IEEE 1547 curve, moving the reference voltage by \(\Delta V\) shifts the reactive power by \(k\,\Delta V\), so a dispatched level with the curve reacting around it matches how the standard lets operators steer a fleet of inverters. The same linear loop is the standard model for analysing local Volt/VAr stability (Farivar et al., 2013). Our curve reacts only to the voltage that the peers cause. A complete curve would also react to load and solar variation, which adds type (B) drift on top of type (C).</p>
       </section>
 
+    </section>
+
+    <!-- ================================================================ -->
+    <section id="experiments" class="part" aria-labelledby="exp-h">
+      <p class="kicker">4 · Experiments</p>
+      <h2 id="exp-h">Hosts and baselines</h2>
+
+      <section id="exp-setup">
+        <p class="lead">All methods are evaluated at \(\sigma = 3\) with 5 seeds. Tables report the mean and the standard deviation over seeds, and figures the mean with one standard deviation. PACT wraps an unmodified learner, its host, and changes only the action sent to the environment, so every host is also run on its own, which is PACT at trust 0, with the same seeds.</p>
+        <div class="tbl tbl-hosts">
+          <table>
+            <thead>
+              <tr><th scope="col">Benchmark</th><th scope="col">Host that PACT wraps</th><th scope="col">Learners also run</th><th scope="col">Code</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">URB</th><td>The benchmark's PPO learner</td><td>IQL, IPPO, VDN, MAPPO, QMIX and the greedy heuristic, as shipped with the benchmark</td><td><a href="https://github.com/COeXISTENCE-PROJECT/URB" target="_blank" rel="noopener">github.com/COeXISTENCE-PROJECT/URB</a></td></tr>
+              <tr><th scope="row">MAPDN</th><td>MATD3</td><td>—</td><td><a href="https://github.com/Future-Power-Networks/MAPDN" target="_blank" rel="noopener">github.com/Future-Power-Networks/MAPDN</a></td></tr>
+              <tr><th scope="row">VMAS Balance</th><td>MAPPO</td><td>—</td><td><a href="https://github.com/facebookresearch/BenchMARL" target="_blank" rel="noopener">github.com/facebookresearch/BenchMARL</a></td></tr>
+              <tr><th scope="row">MaMuJoCo Ant</th><td>MAPPO</td><td>HAA2C, HAPPO, HATRPO</td><td><a href="https://github.com/PKU-MARL/HARL" target="_blank" rel="noopener">github.com/PKU-MARL/HARL</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="exp-baselines">
+        <h3>Baselines</h3>
+        <p>The baselines take one recent representative from each class of method that could plausibly handle this drift, preferring methods with public code; those without public code were implemented from their papers. Every baseline runs through the same entry point as PACT, inside the same harmed environment. The tags show the benchmarks each one runs on. Four names differ in Figure 4: RLS is URLS, DEDA-FP is Deep FP, IPGA is PMPG, and QCD+ is QCD.</p>
+
+        <h4 class="bl-group">Trust regions and sequential updates</h4>
+        <ul class="bl-list">
+          <li>
+            <div class="bl-head"><p class="bl-name">HAPPO and HATRPO<span class="bl-alias">with HAA2C on the Ant</span></p><p class="bl-meta">ICLR 2022 · JMLR 2024</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li><li>Ant</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://arxiv.org/abs/2304.09870" target="_blank" rel="noopener">arxiv.org/abs/2304.09870</a></dd><dt>Code</dt><dd><a href="https://github.com/PKU-MARL/HARL" target="_blank" rel="noopener">github.com/PKU-MARL/HARL</a></dd></dl>
+              <p>Heterogeneous-agent trust-region methods update the agents one at a time in a random order and weight each update by the change the preceding agents have just made. This is the standard multi-agent remedy for drift caused by co-learners. They test whether stabilising learning helps when the drift continues with every partner frozen.</p>
+            </div>
+          </li>
+          <li>
+            <div class="bl-head"><p class="bl-name">HASAC</p><p class="bl-meta">ICLR 2024</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://arxiv.org/abs/2306.10715" target="_blank" rel="noopener">arxiv.org/abs/2306.10715</a></dd><dt>Code</dt><dd><a href="https://github.com/PKU-MARL/HARL" target="_blank" rel="noopener">github.com/PKU-MARL/HARL</a></dd></dl>
+              <p>The off-policy, maximum-entropy member of the same family: soft actor-critic with sequential agent updates. Its entropy bonus keeps every agent's actions varied, which is the excitation an estimator of the coupling needs, while its critic is fitted on replayed data that mix phases of the driver.</p>
+            </div>
+          </li>
+        </ul>
+
+        <h4 class="bl-group">Memory</h4>
+        <ul class="bl-list">
+          <li>
+            <div class="bl-head"><p class="bl-name">R-MAPPO and R-IPPO</p><p class="bl-meta">NeurIPS 2022</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://arxiv.org/abs/2103.01955" target="_blank" rel="noopener">arxiv.org/abs/2103.01955</a></dd><dt>Code</dt><dd><a href="https://github.com/marlbenchmark/on-policy" target="_blank" rel="noopener">github.com/marlbenchmark/on-policy</a></dd></dl>
+              <p>MAPPO and IPPO with a recurrent layer between the observation encoder and the policy head, trained by backpropagation through time. They test the simplest alternative explanation: that a policy with memory can infer the drift from its own history. On URB the recurrent state is carried across days.</p>
+            </div>
+          </li>
+        </ul>
+
+        <h4 class="bl-group">Graphs, mean fields and agent models</h4>
+        <ul class="bl-list">
+          <li>
+            <div class="bl-head"><p class="bl-name">DGN</p><p class="bl-meta">ICLR 2020</p><ul class="bl-on"><li>URB</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://arxiv.org/abs/1810.09202" target="_blank" rel="noopener">arxiv.org/abs/1810.09202</a></dd><dt>Code</dt><dd><a href="https://github.com/PKU-RL/DGN" target="_blank" rel="noopener">github.com/PKU-RL/DGN</a></dd></dl>
+              <p>Graph convolutional reinforcement learning: each agent combines its features with its neighbours' through multi-head attention, and a Q-network acts on the result, with a regulariser that keeps the attention stable over time. It tests whether a learned graph over the agents can discover the coupling that PACT is given.</p>
+            </div>
+          </li>
+          <li>
+            <div class="bl-head"><p class="bl-name">MF-Q and MF-AC<span class="bl-alias">MF-AC and MF-AC-T in Figure 4</span></p><p class="bl-meta">ICML 2018</p><ul class="bl-on"><li>URB</li><li>VMAS</li><li>MAPDN, via the host</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://proceedings.mlr.press/v80/yang18d/yang18d.pdf" target="_blank" rel="noopener">proceedings.mlr.press/v80/yang18d</a></dd><dt>Code</dt><dd><a href="https://github.com/mlii/mfrl" target="_blank" rel="noopener">github.com/mlii/mfrl</a></dd></dl>
+              <p>Mean-field reinforcement learning summarises an agent's neighbourhood by its mean action and learns the value of the agent's own action against that mean, with a Q-function (MF-Q) or an actor-critic (MF-AC); MF-AC-T uses the team mean with the agent included. The coupling in our benchmarks is a weighted mean of the peers' load, so mean-field RL is its classical alternative. On MAPDN the host already observes the weighted mean of the peers' actions and represents this class.</p>
+            </div>
+          </li>
+          <li>
+            <div class="bl-head"><p class="bl-name">LIAM</p><p class="bl-meta">NeurIPS 2021</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://proceedings.neurips.cc/paper_files/paper/2021/file/a03caec56cd82478bf197475b48c05f9-Paper.pdf" target="_blank" rel="noopener">proceedings.neurips.cc/…/a03caec5…-Paper.pdf</a></dd><dt>Code</dt><dd><a href="https://github.com/uoe-agents/LIAM" target="_blank" rel="noopener">github.com/uoe-agents/LIAM</a></dd></dl>
+              <p>Local information agent modelling: an encoder learns a representation of the other agents from the controlled agent's own observations and actions, trained to reconstruct what the others observe and do, and the policy conditions on it. It tests whether modelling the peers' behaviour is enough when what drifts is how much that behaviour costs.</p>
+            </div>
+          </li>
+        </ul>
+
+        <h4 class="bl-group">Context, latent tasks and restarts</h4>
+        <ul class="bl-list">
+          <li>
+            <div class="bl-head"><p class="bl-name">LCPO</p><p class="bl-meta">ICLR 2025</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://openreview.net/pdf?id=l6QnSQizmN" target="_blank" rel="noopener">openreview.net/pdf?id=l6QnSQizmN</a></dd><dt>Code</dt><dd><a href="https://github.com/pouyahmdn/LCPO" target="_blank" rel="noopener">github.com/pouyahmdn/LCPO</a></dd></dl>
+              <p>Built for environments driven by an observed exogenous context. It anchors the policy on states from past contexts, so that learning in the current context does not overwrite behaviour that other contexts still need. We give it the driver \(\drv{A(t)}\) as its context.</p>
+            </div>
+          </li>
+          <li>
+            <div class="bl-head"><p class="bl-name">Oracle-A(t)<span class="bl-alias">the oracle driver</span></p><p class="bl-meta">Control run</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Code</dt><dd><span class="nolink">Part of our code, released upon acceptance</span></dd></dl>
+              <p>The host with the true driver \(\drv{A(t)}\) appended to every observation: the one quantity that drifts, and one that PACT is never given. It measures what knowing the condition is worth on its own.</p>
+            </div>
+          </li>
+          <li>
+            <div class="bl-head"><p class="bl-name">LILAC</p><p class="bl-meta">ICML 2021</p><ul class="bl-on"><li>MAPDN</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://proceedings.mlr.press/v139/xie21c.html" target="_blank" rel="noopener">proceedings.mlr.press/v139/xie21c.html</a></dd><dt>Code</dt><dd><a href="https://github.com/EmiliyanGospodinov/LILAC" target="_blank" rel="noopener">github.com/EmiliyanGospodinov/LILAC</a> <span class="nolink">(third-party implementation)</span></dd></dl>
+              <p>Models the environment as a sequence of MDPs indexed by a latent variable that changes between episodes. A variational model infers the latent from each episode, an LSTM prior predicts the next one, and a soft actor-critic learner conditions on it.</p>
+            </div>
+          </li>
+          <li>
+            <div class="bl-head"><p class="bl-name">WISDOM</p><p class="bl-meta">arXiv 2025</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://arxiv.org/abs/2510.04507" target="_blank" rel="noopener">arxiv.org/abs/2510.04507</a></dd><dt>Code</dt><dd><a href="https://github.com/MinWangcs/WISDOM" target="_blank" rel="noopener">github.com/MinWangcs/WISDOM</a></dd></dl>
+              <p>Learns a representation of the current task from recent transitions, decomposes the sequence of representations over several time scales with wavelets, and predicts how it will evolve; the policy conditions on the prediction. It is the learned counterpart of PACT's declared basis and forecast.</p>
+            </div>
+          </li>
+          <li>
+            <div class="bl-head"><p class="bl-name">QCD<span class="bl-alias">QCD+ in Figure 4</span></p><p class="bl-meta">arXiv 2024</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://arxiv.org/abs/2410.13772" target="_blank" rel="noopener">arxiv.org/abs/2410.13772</a></dd><dt>Code</dt><dd><span class="nolink">No public code; implemented from the paper</span></dd></dl>
+              <p>Quickest change detection with restarts: a Bernoulli generalised likelihood-ratio test watches the reward stream and resets the learner when it detects a change. Variants restart at random times or follow the multi-scale tests of MASTER. It tests whether detecting change and relearning is enough, without identifying what changed.</p>
+            </div>
+          </li>
+        </ul>
+
+        <h4 class="bl-group">Online identification</h4>
+        <ul class="bl-list">
+          <li>
+            <div class="bl-head"><p class="bl-name">RMA<span class="bl-alias">with UP-OSI as a variant</span></p><p class="bl-meta">RSS 2021</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://www.roboticsproceedings.org/rss17/p011.html" target="_blank" rel="noopener">roboticsproceedings.org/rss17/p011.html</a></dd><dt>Code</dt><dd><span class="nolink">Implemented from the paper</span></dd></dl>
+              <p>Rapid motor adaptation trains a policy on privileged environment factors, then distils an adaptation module that recovers them from the recent history of observations and actions. It is the closest methodological neighbour of PACT: both identify something online, but RMA learns its identifier from history while PACT estimates a few gains on a declared basis. The privileged factor is the drifting gain on MAPDN and the driver on VMAS and URB.</p>
+            </div>
+          </li>
+        </ul>
+
+        <h4 class="bl-group">Robustness</h4>
+        <ul class="bl-list">
+          <li>
+            <div class="bl-head"><p class="bl-name">DR<span class="bl-alias">domain randomisation</span></p><p class="bl-meta">IROS 2017</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://arxiv.org/abs/1703.06907" target="_blank" rel="noopener">arxiv.org/abs/1703.06907</a></dd></dl>
+              <p>Trains the host on severities drawn uniformly from \([0, 3]\) in every episode, without telling the policy which severity it faces. It hedges against the drift instead of identifying it.</p>
+            </div>
+          </li>
+          <li>
+            <div class="bl-head"><p class="bl-name">DORAEMON</p><p class="bl-meta">ICLR 2024</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://arxiv.org/abs/2311.01885" target="_blank" rel="noopener">arxiv.org/abs/2311.01885</a></dd><dt>Code</dt><dd><a href="https://github.com/gabrieletiboni/doraemon" target="_blank" rel="noopener">github.com/gabrieletiboni/doraemon</a></dd></dl>
+              <p>Domain randomisation with an adaptive curriculum: it maximises the entropy of the training distribution over \(\sigma\) subject to a success-rate constraint and a trust region, so the range of severities widens as fast as the policy can handle it.</p>
+            </div>
+          </li>
+          <li>
+            <div class="bl-head"><p class="bl-name">ERNIE</p><p class="bl-meta">NeurIPS 2023</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://proceedings.neurips.cc/paper_files/paper/2023/hash/d6f8517fceeca1e2cd61721dff786c14-Abstract-Conference.html" target="_blank" rel="noopener">proceedings.neurips.cc/…/d6f8517f…-Abstract-Conference.html</a></dd><dt>Code</dt><dd><a href="https://github.com/abukharin3/ERNIE" target="_blank" rel="noopener">github.com/abukharin3/ERNIE</a></dd></dl>
+              <p>Makes each policy robust to changes in its input with an adversarial regulariser, solved as a Stackelberg game. Its analysis bounds the change of return under perturbed observations or transitions for policies that are smooth in their input.</p>
+            </div>
+          </li>
+        </ul>
+
+        <h4 class="bl-group">Model-based MARL</h4>
+        <ul class="bl-list">
+          <li>
+            <div class="bl-head"><p class="bl-name">M3W</p><p class="bl-meta">NeurIPS 2025</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://openreview.net/forum?id=fi24ry0BX5" target="_blank" rel="noopener">openreview.net/forum?id=fi24ry0BX5</a></dd><dt>Code</dt><dd><a href="https://github.com/zhaozijie2022/m3w-marl" target="_blank" rel="noopener">github.com/zhaozijie2022/m3w-marl</a></dd></dl>
+              <p>Learns a world model whose dynamics and reward predictors are mixtures of experts, and chooses joint actions by model-predictive path-integral planning. It tests whether a learned model of the dynamics, drift included, can take the place of a declared one.</p>
+            </div>
+          </li>
+        </ul>
+
+        <h4 class="bl-group">Fictitious play and performative learning</h4>
+        <ul class="bl-list">
+          <li>
+            <div class="bl-head"><p class="bl-name">Deep FP<span class="bl-alias">DEDA-FP in Figure 4</span></p><p class="bl-meta">NeurIPS 2025</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://arxiv.org/abs/2510.22158" target="_blank" rel="noopener">arxiv.org/abs/2510.22158</a></dd><dt>Code</dt><dd><span class="nolink">No public code; implemented from the paper</span></dd></dl>
+              <p>Deep fictitious play for mean-field games: each iteration computes a best response to the averaged population, and an average policy fitted by supervised learning plays at evaluation. It tests whether seeking an equilibrium, with no estimator at all, reaches what PACT reaches.</p>
+            </div>
+          </li>
+          <li>
+            <div class="bl-head"><p class="bl-name">PMPG<span class="bl-alias">IPGA in Figure 4</span></p><p class="bl-meta">arXiv 2025</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://arxiv.org/abs/2504.20593" target="_blank" rel="noopener">arxiv.org/abs/2504.20593</a></dd><dt>Code</dt><dd><span class="nolink">No public code; implemented from the paper</span></dd></dl>
+              <p>Independent policy gradient (IPGA) and natural policy gradient (INPG) under repeated retraining, from the theory of performative Markov potential games, in which the deployed policies reshape the game. It tests whether a gain could come from the deployment schedule rather than from identification.</p>
+            </div>
+          </li>
+        </ul>
+
+        <h4 class="bl-group">Estimators without the declared operator</h4>
+        <ul class="bl-list">
+          <li>
+            <div class="bl-head"><p class="bl-name">ESO<span class="bl-alias">extended state observer</span></p><p class="bl-meta">IEEE TIE 2009</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://doi.org/10.1109/TIE.2008.2011621" target="_blank" rel="noopener">doi.org/10.1109/TIE.2008.2011621</a></dd><dt>Toolbox</dt><dd><a href="https://arxiv.org/abs/2112.01614" target="_blank" rel="noopener">arxiv.org/abs/2112.01614</a></dd><dt>Code</dt><dd><a href="https://pyadrc.readthedocs.io/en/latest/" target="_blank" rel="noopener">pyadrc.readthedocs.io</a></dd></dl>
+              <p>The observer at the heart of active disturbance rejection control. It estimates each agent's lumped disturbance from its own measured shortfall and cancels the estimate at the next step, with no peers and no structure. It is the classical control answer to an unknown disturbance.</p>
+            </div>
+          </li>
+          <li>
+            <div class="bl-head"><p class="bl-name">URLS<span class="bl-alias">RLS in Figure 4</span></p><p class="bl-meta">Control run</p><ul class="bl-on"><li>URB</li><li>MAPDN</li><li>VMAS</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Code</dt><dd><span class="nolink">Part of our code, released upon acceptance</span></dd></dl>
+              <p>Unstructured recursive least squares: PACT's own estimator, with the same forgetting, trust and correction, applied to the peers' raw broadcast actions instead of the declared channels. The two differ only in the design matrix, so URLS isolates the value of the declared operator.</p>
+            </div>
+          </li>
+        </ul>
+
+        <h4 class="bl-group">State of the art on the feeder</h4>
+        <ul class="bl-list">
+          <li>
+            <div class="bl-head"><p class="bl-name">TPA</p><p class="bl-meta">KDD 2024</p><ul class="bl-on"><li>MAPDN</li></ul></div>
+            <div class="bl-body">
+              <dl class="bl-links"><dt>Paper</dt><dd><a href="https://dl.acm.org/doi/10.1145/3637528.3671790" target="_blank" rel="noopener">dl.acm.org/doi/10.1145/3637528.3671790</a></dd><dt>arXiv</dt><dd><a href="https://arxiv.org/abs/2406.17818" target="_blank" rel="noopener">arxiv.org/abs/2406.17818</a></dd><dt>Code</dt><dd><a href="https://github.com/Canyizl/TPA-for-AVC" target="_blank" rel="noopener">github.com/Canyizl/TPA-for-AVC</a></dd></dl>
+              <p>Temporal prototype-aware learning for active voltage control. It extends an off-policy learner with a transformer over the zone's bus features, a recurrent summary of recent solar and load profiles, and 24 seasonal prototypes that condition the policy. It is the closest published method on MAPDN and was built for time-varying operating conditions.</p>
+            </div>
+          </li>
+        </ul>
+      </section>
     </section>
 
     <!-- ================================================================ -->
